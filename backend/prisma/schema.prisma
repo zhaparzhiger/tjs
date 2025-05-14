@@ -1,0 +1,160 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  username  String    @unique
+  password  String
+  fullName  String
+  email     String?   @unique
+  phone     String?
+  role      String // admin, school, district, mobile, police, health, regional
+  region    String?
+  district  String?
+  city      String?
+  position  String?
+  isActive  Boolean   @default(true)
+  lastLogin DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  createdFamilies        Family[]         @relation("CreatedBy")
+  updatedFamilies        Family[]         @relation("UpdatedBy")
+  createdSupportMeasures SupportMeasure[] @relation("CreatedBy")
+  documents              Document[]
+  notifications          Notification[]   @relation("NotificationCreator")
+  notificationsReceived  Notification[]   @relation("NotificationRecipient")
+}
+
+model Family {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  caseNumber       String   @unique
+  familyName       String
+  address          String
+  region           String
+  district         String
+  city             String?
+  status           String // active, inactive, monitoring
+  riskLevel        String // high, medium, low
+  riskFactors      String[]
+  registrationDate DateTime
+  lastUpdate       DateTime @updatedAt
+  isActive         Boolean  @default(true)
+  inactiveReason   String?
+  notes            String?
+
+  // Relations
+  createdBy       User             @relation("CreatedBy", fields: [createdById], references: [id])
+  createdById     String           @db.ObjectId
+  updatedBy       User             @relation("UpdatedBy", fields: [updatedById], references: [id])
+  updatedById     String           @db.ObjectId
+  members         FamilyMember[]
+  supportMeasures SupportMeasure[]
+  documents       Document[]
+  history         FamilyHistory[]
+}
+
+model FamilyMember {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  familyId       String   @db.ObjectId
+  firstName      String
+  lastName       String
+  middleName     String?
+  birthDate      DateTime
+  gender         String
+  relationship   String // parent, child, other
+  documentType   String? // passport, birth certificate, etc.
+  documentNumber String?
+  education      String?
+  employment     String?
+  healthStatus   String?
+  disabilities   String?
+  specialNeeds   Boolean  @default(false)
+  notes          String?
+  isActive       Boolean  @default(true)
+
+  // Relations
+  family          Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  supportMeasures SupportMeasure[]
+  documents       Document[]
+}
+
+model SupportMeasure {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  familyId    String    @db.ObjectId
+  memberId    String?   @db.ObjectId
+  type        String // financial, educational, medical, psychological, etc.
+  description String
+  startDate   DateTime
+  endDate     DateTime?
+  status      String // planned, in-progress, completed, cancelled
+  provider    String
+  result      String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  family      Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member      FamilyMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  createdBy   User          @relation("CreatedBy", fields: [createdById], references: [id])
+  createdById String        @db.ObjectId
+  documents   Document[]
+}
+
+model Document {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  title      String
+  type       String // report, certificate, application, etc.
+  fileUrl    String
+  mimeType   String
+  fileSize   Int
+  familyId   String?  @db.ObjectId
+  memberId   String?  @db.ObjectId
+  supportId  String?  @db.ObjectId
+  uploadDate DateTime @default(now())
+  notes      String?
+
+  // Relations
+  family         Family?         @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  member         FamilyMember?   @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  supportMeasure SupportMeasure? @relation(fields: [supportId], references: [id], onDelete: SetNull)
+  uploadedBy     User            @relation(fields: [uploadedById], references: [id])
+  uploadedById   String          @db.ObjectId
+}
+
+model FamilyHistory {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  familyId    String   @db.ObjectId
+  action      String // created, updated, status_changed, etc.
+  description String
+  timestamp   DateTime @default(now())
+  userId      String   @db.ObjectId
+
+  // Relations
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  title     String
+  message   String
+  type      String // info, warning, alert
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relations
+  creator     User   @relation("NotificationCreator", fields: [creatorId], references: [id])
+  creatorId   String @db.ObjectId
+  recipient   User   @relation("NotificationRecipient", fields: [recipientId], references: [id])
+  recipientId String @db.ObjectId
+}
