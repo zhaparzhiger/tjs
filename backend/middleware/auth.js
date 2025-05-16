@@ -31,7 +31,7 @@ const isAdmin = (req, res, next) => {
 
 // Middleware to check if user has regional access
 const hasRegionalAccess = (req, res, next) => {
-  if (req.user.role === "admin" || req.user.role === "regional") {
+  if (req.user.role === "ADMIN" || req.user.role === "REGIONAL") {
     return next()
   }
   return res.status(403).json({ message: "Requires regional access" })
@@ -39,7 +39,7 @@ const hasRegionalAccess = (req, res, next) => {
 
 // Middleware to check if user has district access
 const hasDistrictAccess = (req, res, next) => {
-  if (["admin", "regional", "district"].includes(req.user.role)) {
+  if (["ADMIN", "REGIONAL", "DISTRICT"].includes(req.user.role)) {
     return next()
   }
   return res.status(403).json({ message: "Requires district access" })
@@ -49,7 +49,7 @@ const hasDistrictAccess = (req, res, next) => {
 const checkRegionAccess = async (req, res, next) => {
   try {
     // Admin has access to all regions
-    if (req.user.role === "admin") {
+    if (req.user.role === "ADMIN") {
       return next()
     }
 
@@ -62,13 +62,13 @@ const checkRegionAccess = async (req, res, next) => {
     }
 
     // Regional users can only access their region
-    if (req.user.role === "regional") {
+    if (req.user.role === "REGIONAL") {
       req.userRegion = user.region
       return next()
     }
 
     // District users can only access their district
-    if (req.user.role === "district") {
+    if (req.user.role === "DISTRICT") {
       if (!user.district) {
         return res.status(403).json({ message: "User has no assigned district" })
       }
@@ -78,7 +78,7 @@ const checkRegionAccess = async (req, res, next) => {
     }
 
     // School, mobile, police, health users can only access their city/district
-    if (["school", "mobile", "police", "health"].includes(req.user.role)) {
+    if (["SCHOOL", "MOBILE", "POLICE", "HEALTH"].includes(req.user.role)) {
       if (!user.district || !user.city) {
         return res.status(403).json({ message: "User has no assigned district or city" })
       }
@@ -98,7 +98,7 @@ const checkRegionAccess = async (req, res, next) => {
 // Middleware to filter families based on user's access level
 const filterFamiliesByAccess = async (req, res, next) => {
   try {
-    if (req.user.role === "admin") {
+    if (req.user.role === "ADMIN") {
       // Admin can see all families
       return next()
     }
@@ -112,9 +112,9 @@ const filterFamiliesByAccess = async (req, res, next) => {
     }
 
     // Set filter based on user role and location
-    if (req.user.role === "regional") {
+    if (req.user.role === "REGIONAL") {
       req.familyFilter = { region: user.region }
-    } else if (req.user.role === "district") {
+    } else if (req.user.role === "DISTRICT") {
       req.familyFilter = {
         region: user.region,
         district: user.district,

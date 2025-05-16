@@ -37,21 +37,45 @@ model User {
 }
 
 model Family {
-  id               String   @id @default(auto()) @map("_id") @db.ObjectId
-  caseNumber       String   @unique
-  familyName       String
-  address          String
-  region           String
-  district         String
-  city             String?
-  status           String // active, inactive, monitoring
-  riskLevel        String // high, medium, low
-  riskFactors      String[]
-  registrationDate DateTime
-  lastUpdate       DateTime @updatedAt
-  isActive         Boolean  @default(true)
-  inactiveReason   String?
-  notes            String?
+  id                  String  @id @default(auto()) @map("_id") @db.ObjectId
+  caseNumber          String  @unique
+  familyName          String
+  address             String
+  region              String
+  registrationAddress String?
+
+  district             String
+  city                 String?
+  status               String // active, inactive, monitoring
+  riskLevel            String // high, medium, low
+  riskFactors          String[]
+  registrationDate     DateTime
+  lastUpdate           DateTime @updatedAt
+  isActive             Boolean  @default(true)
+  inactiveReason       String?
+  notes                String?
+  inspectionStatus     String?  @default("not-inspected")
+  familyType           String?  @default("full")
+  housingType          String?  @default("apartment")
+  employment           String?  @default("employed-official")
+  workplace            String?
+  tzhsReason           String?
+  nbReason             String?
+  familyIncome         String?
+  needsSupport         Boolean  @default(false)
+  needsEducation       Boolean  @default(false)
+  needsHealth          Boolean  @default(false)
+  needsPolice          Boolean  @default(false)
+  hasDisability        Boolean  @default(false)
+  // Additional fields to match frontend
+  contactPhone         String?
+  contactEmail         String?
+  incomeSource         String?
+  monthlyIncome        Float?
+  socialBenefits       String[]
+  referralSource       String?
+  primaryLanguage      String?
+  hasInterpreterNeeded Boolean  @default(false)
 
   // Relations
   createdBy       User             @relation("CreatedBy", fields: [createdById], references: [id])
@@ -65,23 +89,47 @@ model Family {
 }
 
 model FamilyMember {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
-  familyId       String   @db.ObjectId
-  firstName      String
-  lastName       String
-  middleName     String?
-  birthDate      DateTime
-  gender         String
-  relationship   String // parent, child, other
-  documentType   String? // passport, birth certificate, etc.
-  documentNumber String?
-  education      String?
-  employment     String?
-  healthStatus   String?
-  disabilities   String?
-  specialNeeds   Boolean  @default(false)
-  notes          String?
-  isActive       Boolean  @default(true)
+  id                  String    @id @default(auto()) @map("_id") @db.ObjectId
+  familyId            String    @db.ObjectId
+  firstName           String
+  lastName            String
+  middleName          String?
+  birthDate           DateTime? // Nullable to handle missing birth dates
+  gender              String? // e.g., "male", "female", "other"
+  relationship        String // e.g., "mother", "father", "son", "daughter", "other"
+  documentType        String? // e.g., "passport", "birth certificate", "Удостоверение личности"
+  documentNumber      String?   @unique // Nullable but unique to enforce IIN uniqueness
+  documentIssueDate   DateTime? // For document issue date
+  documentExpiryDate  DateTime? // For document expiry date
+  registrationAddress String? // Address from frontend form
+  education           String? // e.g., "школа", "университет"
+  grade               String? // e.g., "6" for school grade
+  institution         String? // e.g., "КазНУ" for university
+  course              String? // e.g., "2" for university course
+  funding             String? // e.g., "budget", "paid", "grant"
+  meals               String? // e.g., "free", "paid", "none" for preschool
+  notes               String? // Free-text notes, e.g., ID card notes
+  status              String? // e.g., "Школьник", "Студент", "Взрослый", "Дошкольник"
+  isActive            Boolean   @default(true)
+
+  // Additional fields from your provided model (optional in frontend)
+  citizenship       String? // e.g., "Kazakhstan"
+  ethnicity         String? // e.g., "Kazakh", "Russian"
+  maritalStatus     String? // e.g., "married", "single"
+  phoneNumber       String? // e.g., "+77012345678"
+  email             String? // e.g., "example@gmail.com"
+  employment        String? // e.g., "employed", "unemployed"
+  healthStatus      String? // e.g., "healthy", "chronic illness"
+  disabilities      String? // e.g., "visual impairment"
+  specialNeeds      Boolean  @default(false)
+  isHeadOfHousehold Boolean  @default(false)
+  primaryCaregiver  Boolean  @default(false)
+  incomeAmount      Float? // e.g., 150000.0
+  incomeSource      String? // e.g., "salary", "pension"
+  medicalInsurance  String? // e.g., "state", "private"
+  chronicConditions String[] // e.g., ["diabetes", "hypertension"]
+  allergies         String[] // e.g., ["peanuts", "pollen"]
+  medications       String[] // e.g., ["insulin", "antihistamine"]
 
   // Relations
   family          Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
@@ -102,6 +150,19 @@ model SupportMeasure {
   result      String?
   notes       String?
   createdAt   DateTime  @default(now())
+
+  // Additional fields to match frontend
+  priority       String? // high, medium, low
+  cost           Float?
+  fundingSource  String?
+  contactPerson  String?
+  contactPhone   String?
+  contactEmail   String?
+  frequency      String? // one-time, weekly, monthly, etc.
+  location       String?
+  followUpDate   DateTime?
+  evaluationDate DateTime?
+  effectiveness  String? // effective, partially effective, not effective
 
   // Relations
   family      Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
@@ -124,6 +185,13 @@ model Document {
   uploadDate DateTime @default(now())
   notes      String?
 
+  // Additional fields to match frontend
+  category       String? // identification, medical, educational, legal, etc.
+  expirationDate DateTime?
+  isConfidential Boolean   @default(false)
+  tags           String[]
+  status         String? // valid, expired, pending
+
   // Relations
   family         Family?         @relation(fields: [familyId], references: [id], onDelete: SetNull)
   member         FamilyMember?   @relation(fields: [memberId], references: [id], onDelete: SetNull)
@@ -140,6 +208,13 @@ model FamilyHistory {
   timestamp   DateTime @default(now())
   userId      String   @db.ObjectId
 
+  // Additional fields to match frontend
+  changedFields  String[]
+  previousValues Json?
+  newValues      Json?
+  ipAddress      String?
+  userAgent      String?
+
   // Relations
   family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
 }
@@ -151,6 +226,14 @@ model Notification {
   type      String // info, warning, alert
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
+
+  // Additional fields to match frontend
+  priority    String? // high, medium, low
+  category    String? // system, case, task, reminder
+  expiresAt   DateTime?
+  actionUrl   String?
+  actionLabel String?
+  isArchived  Boolean   @default(false)
 
   // Relations
   creator     User   @relation("NotificationCreator", fields: [creatorId], references: [id])

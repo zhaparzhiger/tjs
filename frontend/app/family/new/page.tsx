@@ -1,8 +1,7 @@
 "use client"
 
-import type React from "react"
-
-import { useSearchParams } from "next/navigation"
+import { useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,11 +11,38 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ArrowLeft, Save } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { type UserRole, roleConfigs } from "@/types/roles"
-import { getFromStorage, saveToStorage, STORAGE_KEYS } from "@/lib/storage-utils"
-import type { Family } from "@/types/models"
+
+interface FamilyFormData {
+  caseNumber: string
+  familyName: string
+  address: string
+  region: string
+  district: string
+  city: string
+  status: string
+  riskLevel: string
+  riskFactors: string[]
+  registrationDate: string
+  notes: string
+  contactPhone: string
+  contactEmail: string
+  housingType: string
+  incomeSource: string
+  monthlyIncome: number
+  socialBenefits: string[]
+  referralSource: string
+  primaryLanguage: string
+  hasInterpreterNeeded: boolean
+  familyType: string
+  employment: string
+  workplace: string
+  needsSupport: boolean
+  needsEducation: boolean
+  needsHealth: boolean
+  needsPolice: boolean
+}
 
 export default function NewFamilyPage() {
   const searchParams = useSearchParams()
@@ -25,64 +51,113 @@ export default function NewFamilyPage() {
   const { toast } = useToast()
   const roleConfig = roleConfigs[role]
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const [formData, setFormData] = useState<FamilyFormData>({
+    caseNumber: "",
+    familyName: "Иванов Иван Иванович",
+    address: "г. Павлодар, ул. Ленина, д. 10, кв. 5",
+    region: "",
+    district: "",
+    city: "",
+    status: "ТЖС",
+    riskLevel: "low",
+    riskFactors: [],
+    registrationDate: new Date().toISOString().split("T")[0],
+    notes: "Семья нуждается в социальной поддержке",
+    contactPhone: "",
+    contactEmail: "",
+    housingType: "apartment",
+    incomeSource: "",
+    monthlyIncome: 0,
+    socialBenefits: [],
+    referralSource: "",
+    primaryLanguage: "",
+    hasInterpreterNeeded: false,
+    familyType: "full",
+    employment: "employed",
+    workplace: "ТОО 'Компания', менеджер",
+    needsSupport: true,
+    needsEducation: false,
+    needsHealth: false,
+    needsPolice: false,
+  })
 
-    // Получаем данные из формы
-    const form = e.target as HTMLFormElement
-    const parentName = (form.querySelector("#parentName") as HTMLInputElement).value
-    const iin = (form.querySelector("#iin") as HTMLInputElement).value
-    const address = (form.querySelector("#address") as HTMLTextAreaElement).value
-    const status = (form.querySelector("#status") as HTMLSelectElement)?.value || "tzhs"
-    const familyType = (form.querySelector("#familyType") as HTMLSelectElement)?.value || "full"
-    const childrenCount = Number.parseInt((form.querySelector("#childrenCount") as HTMLInputElement).value || "0")
-    const employment = (form.querySelector("#employment") as HTMLSelectElement)?.value || "unemployed"
-    const workplace = (form.querySelector("#workplace") as HTMLInputElement).value
-    const needsSupport = (form.querySelector("#needsSupport") as HTMLInputElement)?.checked || false
-    const needsEducation = (form.querySelector("#needsEducation") as HTMLInputElement)?.checked || false
-    const needsHealth = (form.querySelector("#needsHealth") as HTMLInputElement)?.checked || false
-    const needsPolice = (form.querySelector("#needsPolice") as HTMLInputElement)?.checked || false
-    const notes = (form.querySelector("#notes") as HTMLTextAreaElement).value
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-    // Получаем существующие семьи
-    const families = getFromStorage<Family[]>(STORAGE_KEYS.FAMILIES, [])
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
 
-    // Генерируем новый ID
-    const newId = families.length > 0 ? Math.max(...families.map((f) => f.id)) + 1 : 1
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
 
-    // Текущая дата
-    const now = new Date().toLocaleDateString("ru-RU")
+  const handleCheckboxChange = (name: string, checked: boolean) => {
+    setFormData((prev) => ({ ...prev, [name]: checked }))
+  }
 
-    // Создаем объект семьи
-    const newFamily: Family = {
-      id: newId,
-      name: parentName,
-      iin,
-      address,
-      status: status === "tzhs" ? "ТЖС" : status === "nb" ? "Неблагополучная" : "ТЖС, Н/Б",
-      familyType,
-      children: childrenCount,
-      employment,
-      workplace,
-      needsSupport,
-      needsEducation,
-      needsHealth,
-      needsPolice,
-      notes,
-      createdBy: "Текущий пользователь",
-      createdAt: now,
-      lastUpdate: now,
-    }
-
-    // Сохраняем семью в localStorage
-    saveToStorage(STORAGE_KEYS.FAMILIES, [...families, newFamily])
-
-    toast({
-      title: "Семья добавлена",
-      description: "Новая семья успешно добавлена в базу данных",
+  const handleArrayInputChange = (name: string, value: string) => {
+    setFormData((prev) => {
+      const values = value.split(",").map((item) => item.trim()).filter(Boolean)
+      return { ...prev, [name]: values }
     })
+  }
 
-    router.push(`/families?role=${role}`)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch("http://localhost:5555/api/families", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+        },
+        body: JSON.stringify({
+          caseNumber: formData.caseNumber,
+          familyName: formData.familyName,
+          address: formData.address,
+          region: formData.region,
+          district: formData.district,
+          city: formData.city,
+          status: formData.status,
+          riskLevel: formData.riskLevel,
+          riskFactors: formData.riskFactors,
+          registrationDate: new Date(formData.registrationDate).toISOString(),
+          notes: formData.notes,
+          contactPhone: formData.contactPhone,
+          contactEmail: formData.contactEmail,
+          housingType: formData.housingType,
+          incomeSource: formData.incomeSource,
+          monthlyIncome: Number(formData.monthlyIncome),
+          socialBenefits: formData.socialBenefits,
+          referralSource: formData.referralSource,
+          primaryLanguage: formData.primaryLanguage,
+          hasInterpreterNeeded: formData.hasInterpreterNeeded,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to create family")
+      }
+
+      toast({
+        title: "Семья добавлена",
+        description: "Новая семья успешно добавлена в базу данных",
+      })
+      router.push(`/families?role=${role}`)
+    } catch (error: any) {
+      console.error("Error creating family:", error)
+      toast({
+        title: "Ошибка",
+        description: error.message || "Не удалось создать семью",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   // Redirect if user doesn't have permission to add families
@@ -113,38 +188,94 @@ export default function NewFamilyPage() {
               <CardContent className="grid gap-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="parentName">ФИО родителя</Label>
-                    <Input id="parentName" defaultValue="Иванов Иван Иванович" required />
+                    <Label htmlFor="caseNumber">Номер дела</Label>
+                    <Input
+                      id="caseNumber"
+                      name="caseNumber"
+                      value={formData.caseNumber}
+                      onChange={handleInputChange}
+                      required
+                    />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="iin">ИИН</Label>
-                    <Input id="iin" defaultValue="123456789012" required />
+                    <Label htmlFor="familyName">ФИО семьи</Label>
+                    <Input
+                      id="familyName"
+                      name="familyName"
+                      value={formData.familyName}
+                      onChange={handleInputChange}
+                      required
+                    />
                   </div>
                 </div>
 
                 <div className="grid gap-2">
                   <Label htmlFor="address">Адрес проживания</Label>
-                  <Textarea id="address" defaultValue="г. Павлодар, ул. Ленина, д. 10, кв. 5" required />
+                  <Textarea
+                    id="address"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="region">Регион</Label>
+                    <Input
+                      id="region"
+                      name="region"
+                      value={formData.region}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="district">Район</Label>
+                    <Input
+                      id="district"
+                      name="district"
+                      value={formData.district}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="city">Город</Label>
+                    <Input
+                      id="city"
+                      name="city"
+                      value={formData.city}
+                      onChange={handleInputChange}
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="status">Статус</Label>
-                    <Select defaultValue="tzhs">
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value) => handleSelectChange("status", value)}
+                    >
                       <SelectTrigger id="status">
                         <SelectValue placeholder="Выберите статус" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="tzhs">ТЖС</SelectItem>
-                        <SelectItem value="nb">Неблагополучная</SelectItem>
-                        <SelectItem value="both">ТЖС и Неблагополучная</SelectItem>
+                        <SelectItem value="ТЖС">ТЖС</SelectItem>
+                        <SelectItem value="Неблагополучная">Неблагополучная</SelectItem>
+                        <SelectItem value="ТЖС, Н/Б">ТЖС и Неблагополучная</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="grid gap-2">
                     <Label htmlFor="familyType">Тип семьи</Label>
-                    <Select defaultValue="full">
+                    <Select
+                      value={formData.familyType}
+                      onValueChange={(value) => handleSelectChange("familyType", value)}
+                    >
                       <SelectTrigger id="familyType">
                         <SelectValue placeholder="Выберите тип" />
                       </SelectTrigger>
@@ -159,15 +290,30 @@ export default function NewFamilyPage() {
                   </div>
 
                   <div className="grid gap-2">
-                    <Label htmlFor="childrenCount">Количество детей</Label>
-                    <Input id="childrenCount" type="number" min="1" defaultValue="2" required />
+                    <Label htmlFor="riskLevel">Уровень риска</Label>
+                    <Select
+                      value={formData.riskLevel}
+                      onValueChange={(value) => handleSelectChange("riskLevel", value)}
+                    >
+                      <SelectTrigger id="riskLevel">
+                        <SelectValue placeholder="Выберите уровень" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Низкий</SelectItem>
+                        <SelectItem value="medium">Средний</SelectItem>
+                        <SelectItem value="high">Высокий</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="employment">Занятость родителей</Label>
-                    <Select defaultValue="employed">
+                    <Select
+                      value={formData.employment}
+                      onValueChange={(value) => handleSelectChange("employment", value)}
+                    >
                       <SelectTrigger id="employment">
                         <SelectValue placeholder="Выберите статус" />
                       </SelectTrigger>
@@ -181,35 +327,168 @@ export default function NewFamilyPage() {
 
                   <div className="grid gap-2">
                     <Label htmlFor="workplace">Место работы и должность</Label>
-                    <Input id="workplace" defaultValue="ТОО 'Компания', менеджер" />
+                    <Input
+                      id="workplace"
+                      name="workplace"
+                      value={formData.workplace}
+                      onChange={handleInputChange}
+                    />
                   </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="riskFactors">Факторы риска (через запятую)</Label>
+                  <Input
+                    id="riskFactors"
+                    name="riskFactors"
+                    value={formData.riskFactors.join(", ")}
+                    onChange={(e) => handleArrayInputChange("riskFactors", e.target.value)}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="socialBenefits">Социальные выплаты (через запятую)</Label>
+                  <Input
+                    id="socialBenefits"
+                    name="socialBenefits"
+                    value={formData.socialBenefits.join(", ")}
+                    onChange={(e) => handleArrayInputChange("socialBenefits", e.target.value)}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="contactPhone">Контактный телефон</Label>
+                    <Input
+                      id="contactPhone"
+                      name="contactPhone"
+                      value={formData.contactPhone}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="contactEmail">Контактный email</Label>
+                    <Input
+                      id="contactEmail"
+                      name="contactEmail"
+                      type="email"
+                      value={formData.contactEmail}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="housingType">Тип жилья</Label>
+                    <Select
+                      value={formData.housingType}
+                      onValueChange={(value) => handleSelectChange("housingType", value)}
+                    >
+                      <SelectTrigger id="housingType">
+                        <SelectValue placeholder="Выберите тип" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="apartment">Квартира</SelectItem>
+                        <SelectItem value="house">Дом</SelectItem>
+                        <SelectItem value="rented">Арендованное</SelectItem>
+                        <SelectItem value="temporary">Временное</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="monthlyIncome">Месячный доход</Label>
+                    <Input
+                      id="monthlyIncome"
+                      name="monthlyIncome"
+                      type="number"
+                      value={formData.monthlyIncome}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="incomeSource">Источник дохода</Label>
+                  <Input
+                    id="incomeSource"
+                    name="incomeSource"
+                    value={formData.incomeSource}
+                    onChange={handleInputChange}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="referralSource">Источник направления</Label>
+                  <Input
+                    id="referralSource"
+                    name="referralSource"
+                    value={formData.referralSource}
+                    onChange={handleInputChange}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="primaryLanguage">Основной язык</Label>
+                  <Input
+                    id="primaryLanguage"
+                    name="primaryLanguage"
+                    value={formData.primaryLanguage}
+                    onChange={handleInputChange}
+                  />
                 </div>
 
                 <div className="grid gap-2">
                   <Label>Дополнительные параметры</Label>
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center space-x-2">
-                      <Checkbox id="needsSupport" defaultChecked />
+                      <Checkbox
+                        id="needsSupport"
+                        checked={formData.needsSupport}
+                        onCheckedChange={(checked) => handleCheckboxChange("needsSupport", checked as boolean)}
+                      />
                       <Label htmlFor="needsSupport" className="font-normal">
                         Требуется социальная поддержка
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Checkbox id="needsEducation" />
+                      <Checkbox
+                        id="needsEducation"
+                        checked={formData.needsEducation}
+                        onCheckedChange={(checked) => handleCheckboxChange("needsEducation", checked as boolean)}
+                      />
                       <Label htmlFor="needsEducation" className="font-normal">
                         Требуется поддержка в сфере образования
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Checkbox id="needsHealth" />
+                      <Checkbox
+                        id="needsHealth"
+                        checked={formData.needsHealth}
+                        onCheckedChange={(checked) => handleCheckboxChange("needsHealth", checked as boolean)}
+                      />
                       <Label htmlFor="needsHealth" className="font-normal">
                         Требуется медицинская помощь
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Checkbox id="needsPolice" />
+                      <Checkbox
+                        id="needsPolice"
+                        checked={formData.needsPolice}
+                        onCheckedChange={(checked) => handleCheckboxChange("needsPolice", checked as boolean)}
+                      />
                       <Label htmlFor="needsPolice" className="font-normal">
                         Требуется внимание правоохранительных органов
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="hasInterpreterNeeded"
+                        checked={formData.hasInterpreterNeeded}
+                        onCheckedChange={(checked) => handleCheckboxChange("hasInterpreterNeeded", checked as boolean)}
+                      />
+                      <Label htmlFor="hasInterpreterNeeded" className="font-normal">
+                        Требуется переводчик
                       </Label>
                     </div>
                   </div>
@@ -217,7 +496,12 @@ export default function NewFamilyPage() {
 
                 <div className="grid gap-2">
                   <Label htmlFor="notes">Примечания</Label>
-                  <Textarea id="notes" defaultValue="Семья нуждается в социальной поддержке" />
+                  <Textarea
+                    id="notes"
+                    name="notes"
+                    value={formData.notes}
+                    onChange={handleInputChange}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -226,9 +510,9 @@ export default function NewFamilyPage() {
               <Button variant="outline" onClick={() => router.back()}>
                 Отмена
               </Button>
-              <Button type="submit">
+              <Button type="submit" disabled={isSubmitting}>
                 <Save className="mr-2 h-4 w-4" />
-                Сохранить
+                {isSubmitting ? "Сохранение..." : "Сохранить"}
               </Button>
             </div>
           </div>

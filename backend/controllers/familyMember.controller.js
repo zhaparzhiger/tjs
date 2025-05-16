@@ -2,51 +2,41 @@ const { PrismaClient } = require("@prisma/client")
 const prisma = new PrismaClient()
 
 // Get all family members for a family
-const getFamilyMembers = async (req, res) => {
-  try {
-    const { familyId } = req.params
+async function getFamilyMembers(req, res) {
+  const { familyId } = req.params;
 
+  // Validate familyId
+  if (!familyId || familyId === 'undefined') {
+    return res.status(400).json({ message: 'Invalid or missing familyId' });
+  }
+
+  try {
     // Check if family exists
     const family = await prisma.family.findUnique({
       where: { id: familyId },
-    })
+    });
 
     if (!family) {
-      return res.status(404).json({ message: "Family not found" })
+      return res.status(404).json({ message: 'Family not found' });
     }
 
-    // Check if user has access to this family
-    if (req.familyFilter) {
-      const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => family[key] === value)
-      if (!hasAccess) {
-        return res.status(403).json({ message: "You do not have access to this family" })
-      }
-    }
-
+    // Fetch family members
     const members = await prisma.familyMember.findMany({
       where: { familyId },
-      include: {
-        supportMeasures: true,
-        documents: {
-          include: {
-            uploadedBy: {
-              select: {
-                id: true,
-                username: true,
-                fullName: true,
-              },
-            },
-          },
-        },
-      },
-    })
+    });
 
-    res.status(200).json(members)
+    return res.status(200).json(members);
   } catch (error) {
-    console.error("Error in getFamilyMembers controller:", error)
-    res.status(500).json({ message: "Server error" })
+    console.error('Error fetching family members:', error);
+    if (error.code === 'P2023') {
+      return res.status(400).json({ message: 'Malformed familyId provided' });
+    }
+    return res.status(500).json({ message: 'Internal server error' });
+  } finally {
+    await prisma.$disconnect();
   }
 }
+
 
 // Get family member by ID
 const getFamilyMemberById = async (req, res) => {
@@ -102,94 +92,152 @@ const getFamilyMemberById = async (req, res) => {
 }
 
 // Create a new family member
-const createFamilyMember = async (req, res) => {
+// familyMember.controller.js
+// familyMember.controller.js
+// familyMember.controller.js
+// familyMember.controller.js
+// familyMember.controller.js
+// familyMember.controller.js
+// familyMember.controller.js
+// familyMember.controller.js
+// familyMember.controller.js
+async function createFamilyMember(req, res) {
   try {
     const {
       familyId,
       firstName,
       lastName,
       middleName,
+      documentNumber,
+      documentType,
+      documentIssueDate,
+      documentExpiryDate,
       birthDate,
       gender,
       relationship,
-      documentType,
-      documentNumber,
+      registrationAddress,
       education,
-      employment,
-      healthStatus,
-      disabilities,
-      specialNeeds,
+      grade,
+      institution,
+      course,
+      funding,
+      meals,
       notes,
-    } = req.body
+      status,
+      isActive = true, // Default to true if not provided
+      citizenship,
+      ethnicity,
+      maritalStatus,
+      phoneNumber,
+      email,
+      isHeadOfHousehold,
+      primaryCaregiver,
+      incomeAmount,
+      incomeSource,
+      medicalInsurance,
+      chronicConditions,
+      allergies,
+      medications,
+      formStatus, // Ignored by backend
+    } = req.body;
+
+    // Validate required fields
+    if (!familyId || !firstName || !lastName || !documentNumber) {
+      return res.status(400).json({ message: 'Required fields: familyId, firstName, lastName, documentNumber' });
+    }
+    if (!relationship) {
+      return res.status(400).json({ message: 'Relationship is required' });
+    }
+    if (!/^\d{12}$/.test(documentNumber)) {
+      return res.status(400).json({ message: 'Document number must be 12 digits' });
+    }
+    // Validate relationship
+    const validRelationships = [
+      "mother",
+      "father",
+      "son",
+      "daughter",
+      "grandmother",
+      "grandfather",
+      "guardian",
+      "other",
+    ];
+    if (!relationship || !validRelationships.includes(relationship)) {
+      return res.status(400).json({
+        message: `Invalid relationship: must be one of ${validRelationships.join(", ")}`,
+      });
+    }
+    if (!status || !["Взрослый", "Студент", "Школьник", "Дошкольник"].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status: must be Взрослый, Студент, Школьник, or Дошкольник' });
+    }
 
     // Check if family exists
-    const family = await prisma.family.findUnique({
-      where: { id: familyId },
-    })
-
+    const family = await prisma.family.findUnique({ where: { id: familyId } });
     if (!family) {
-      return res.status(404).json({ message: "Family not found" })
+      return res.status(404).json({ message: 'Family not found' });
     }
 
-    // Check if user has access to this family
-    if (req.familyFilter) {
-      const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => family[key] === value)
-      if (!hasAccess) {
-        return res.status(403).json({ message: "You do not have access to this family" })
-      }
+    // Check if documentNumber exists
+    const existingMember = await prisma.familyMember.findUnique({
+      where: { documentNumber },
+    });
+    if (existingMember) {
+      return res.status(400).json({ message: 'A family member with this document number already exists' });
     }
 
-    // Create new family member
-    const newMember = await prisma.familyMember.create({
+    const familyMember = await prisma.familyMember.create({
       data: {
-        familyId,
+        family: { connect: { id: familyId } },
         firstName,
         lastName,
-        middleName,
-        birthDate: new Date(birthDate),
-        gender,
-        relationship,
-        documentType,
+        middleName: middleName || null,
         documentNumber,
-        education,
-        employment,
-        healthStatus,
-        disabilities,
-        specialNeeds,
-        notes,
-        isActive: true,
+        documentType: documentType || null,
+        documentIssueDate: documentIssueDate ? new Date(documentIssueDate) : null,
+        documentExpiryDate: documentExpiryDate ? new Date(documentExpiryDate) : null,
+        birthDate: birthDate ? new Date(birthDate) : null,
+        gender: gender || null,
+        relationship,
+        registrationAddress: registrationAddress || null,
+        education: education || null,
+        grade: grade || null,
+        institution: institution || null,
+        course: course || null,
+        funding: funding || null,
+        meals: meals || null,
+        notes: notes || null,
+        status,
+        isActive,
+        citizenship: citizenship || null,
+        ethnicity: ethnicity || null,
+        maritalStatus: maritalStatus || null,
+        phoneNumber: phoneNumber || null,
+        email: email || null,
+        isHeadOfHousehold: isHeadOfHousehold || false,
+        primaryCaregiver: primaryCaregiver || false,
+        incomeAmount: incomeAmount || null,
+        incomeSource: incomeSource || null,
+        medicalInsurance: medicalInsurance || null,
+        chronicConditions: chronicConditions || [],
+        allergies: allergies || [],
+        medications: medications || [],
       },
-    })
+      include: { family: true },
+    });
 
-    // Update family history
-    await prisma.familyHistory.create({
-      data: {
-        familyId,
-        action: "member_added",
-        description: `New family member added: ${firstName} ${lastName}`,
-        userId: req.user.id,
-      },
-    })
-
-    // Update family lastUpdate
-    await prisma.family.update({
-      where: { id: familyId },
-      data: {
-        updatedBy: {
-          connect: { id: req.user.id },
-        },
-      },
-    })
-
-    res.status(201).json({
-      message: "Family member created successfully",
-      member: newMember,
-    })
+    res.status(201).json(familyMember);
   } catch (error) {
-    console.error("Error in createFamilyMember controller:", error)
-    res.status(500).json({ message: "Server error" })
+    console.error('Create family member error:', error);
+    if (error.code === 'P2002') {
+      return res.status(400).json({ message: 'A family member with this document number already exists' });
+    }
+    if (error.name === 'PrismaClientValidationError') {
+      return res.status(400).json({ message: `Invalid data provided: ${error.message}` });
+    }
+    res.status(500).json({ message: 'Internal server error' });
   }
 }
+module.exports = { createFamilyMember, /* ... other exports */ };
 
 // Update family member
 const updateFamilyMember = async (req, res) => {
@@ -211,6 +259,19 @@ const updateFamilyMember = async (req, res) => {
       specialNeeds,
       notes,
       isActive,
+      citizenship,
+      ethnicity,
+      maritalStatus,
+      phoneNumber,
+      email,
+      isHeadOfHousehold,
+      primaryCaregiver,
+      incomeAmount,
+      incomeSource,
+      medicalInsurance,
+      chronicConditions,
+      allergies,
+      medications,
     } = req.body
 
     // Check if family member exists
@@ -250,6 +311,19 @@ const updateFamilyMember = async (req, res) => {
         specialNeeds,
         notes,
         isActive,
+        citizenship,
+        ethnicity,
+        maritalStatus,
+        phoneNumber,
+        email,
+        isHeadOfHousehold,
+        primaryCaregiver,
+        incomeAmount,
+        incomeSource,
+        medicalInsurance,
+        chronicConditions,
+        allergies,
+        medications,
       },
     })
 

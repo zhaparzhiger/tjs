@@ -8,6 +8,7 @@ export interface Family {
   address: string
   registrationAddress?: string
   status: string
+  relationship: string
   statusReason?: string
   tzhsReason?: string
   nbReason?: string
@@ -25,6 +26,24 @@ export interface Family {
   hasDisability?: boolean
   isActive?: boolean
   inactiveReason?: string
+  documentIssueDate?: string
+  documentExpiryDate?: string
+  documentType?: string
+  documentNumber?: string
+  education?: string
+  grade?: string
+  institution?: string
+  course?: string
+  funding?: string
+  meals?: string
+  preschool?: string
+  freeTextbooks?: boolean
+  freeMeals?: boolean
+  needsKindergarten?: boolean
+  specialNeeds?: boolean
+  chronicIllness?: boolean
+  needsMedicalCare?: boolean
+  medicalNotes?: string
   notes?: string
   lastUpdate?: string
   createdAt?: string
@@ -42,6 +61,7 @@ export interface FamilyMember {
   relation: string
   age: number
   status: string
+  gender?: "male" | "female" | "other";
   registrationAddress?: string
   idCardNumber?: string
   idCardIssueDate?: string

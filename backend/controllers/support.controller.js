@@ -118,7 +118,29 @@ const getSupportMeasureById = async (req, res) => {
 // Create a new support measure
 const createSupportMeasure = async (req, res) => {
   try {
-    const { familyId, memberId, type, description, startDate, endDate, status, provider, result, notes } = req.body
+    const {
+      familyId,
+      memberId,
+      type,
+      description,
+      startDate,
+      endDate,
+      status,
+      provider,
+      result,
+      notes,
+      priority,
+      cost,
+      fundingSource,
+      contactPerson,
+      contactPhone,
+      contactEmail,
+      frequency,
+      location,
+      followUpDate,
+      evaluationDate,
+      effectiveness,
+    } = req.body
 
     // Check if family exists
     const family = await prisma.family.findUnique({
@@ -165,6 +187,17 @@ const createSupportMeasure = async (req, res) => {
         provider,
         result,
         notes,
+        priority,
+        cost,
+        fundingSource,
+        contactPerson,
+        contactPhone,
+        contactEmail,
+        frequency,
+        location,
+        followUpDate: followUpDate ? new Date(followUpDate) : null,
+        evaluationDate: evaluationDate ? new Date(evaluationDate) : null,
+        effectiveness,
         createdBy: {
           connect: { id: req.user.id },
         },
@@ -215,7 +248,27 @@ const createSupportMeasure = async (req, res) => {
 const updateSupportMeasure = async (req, res) => {
   try {
     const { id } = req.params
-    const { type, description, startDate, endDate, status, provider, result, notes } = req.body
+    const {
+      type,
+      description,
+      startDate,
+      endDate,
+      status,
+      provider,
+      result,
+      notes,
+      priority,
+      cost,
+      fundingSource,
+      contactPerson,
+      contactPhone,
+      contactEmail,
+      frequency,
+      location,
+      followUpDate,
+      evaluationDate,
+      effectiveness,
+    } = req.body
 
     // Check if support measure exists
     const existingSupportMeasure = await prisma.supportMeasure.findUnique({
@@ -249,6 +302,17 @@ const updateSupportMeasure = async (req, res) => {
         provider,
         result,
         notes,
+        priority,
+        cost,
+        fundingSource,
+        contactPerson,
+        contactPhone,
+        contactEmail,
+        frequency,
+        location,
+        followUpDate: followUpDate ? new Date(followUpDate) : null,
+        evaluationDate: evaluationDate ? new Date(evaluationDate) : null,
+        effectiveness,
       },
       include: {
         createdBy: {

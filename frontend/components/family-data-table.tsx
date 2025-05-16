@@ -22,40 +22,87 @@ import { useToast } from "@/hooks/use-toast"
 import { type UserRole, roleConfigs } from "@/types/roles"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Input } from "@/components/ui/input"
-import { getFromStorage, saveToStorage, STORAGE_KEYS } from "@/lib/storage-utils"
 import type { Family } from "@/types/models"
 import { Card, CardContent } from "@/components/ui/card"
 import { useIsMobile } from "@/hooks/use-mobile"
 
 interface FamilyDataTableProps {
   role: UserRole
-  initialFamilies?: Family[]
 }
 
-export function FamilyDataTable({ role, initialFamilies = [] }: FamilyDataTableProps) {
+export function FamilyDataTable({ role }: FamilyDataTableProps) {
   const { toast } = useToast()
-  const [familyData, setFamilyData] = useState<Family[]>(initialFamilies)
+  const [familyData, setFamilyData] = useState<Family[]>([])
   const [searchTerm, setSearchTerm] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
   const roleConfig = roleConfigs[role]
   const isMobile = useIsMobile()
 
-  // Загружаем семьи из localStorage только при монтировании компонента
+  // Fetch families from the backend
   useEffect(() => {
-    if (initialFamilies.length === 0) {
-      const storedFamilies = getFromStorage<Family[]>(STORAGE_KEYS.FAMILIES, [])
-      setFamilyData(storedFamilies)
+    const fetchFamilies = async () => {
+      setIsLoading(true)
+      try {
+        const response = await fetch("http://localhost:5555/api/families", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("auth_token")}`, // Assuming token is stored in localStorage
+          },
+        })
+        if (!response.ok) {
+          throw new Error("Failed to fetch families")
+        }
+        const data = await response.json()
+        // Map backend data to frontend Family type
+        const mappedData: Family[] = data.map((family: any) => ({
+          id: family.id,
+          name: family.familyName,
+          iin: family.caseNumber,
+          address: family.address,
+          status: family.status,
+          children: family._count?.members || 0,
+          lastUpdate: new Date(family.lastUpdate).toLocaleDateString(),
+        }))
+        setFamilyData(mappedData)
+      } catch (error) {
+        console.error("Error fetching families:", error)
+        toast({
+          title: "Ошибка",
+          description: "Не удалось загрузить данные о семьях",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
     }
-  }, [initialFamilies.length]) // Зависимость только от длины initialFamilies
 
-  const handleDelete = (id: number) => {
-    const updatedFamilies = familyData.filter((family) => family.id !== id)
-    setFamilyData(updatedFamilies)
-    saveToStorage(STORAGE_KEYS.FAMILIES, updatedFamilies)
+    fetchFamilies()
+  }, []) // Empty dependency array to fetch once on mount
 
-    toast({
-      title: "Семья удалена",
-      description: "Запись о семье успешно удалена из базы данных",
-    })
+  // Delete family
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await fetch(`http://localhost:5555/api/families/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+        },
+      })
+      if (!response.ok) {
+        throw new Error("Failed to delete family")
+      }
+      setFamilyData(familyData.filter((family) => family.id !== id))
+      toast({
+        title: "Семья удалена",
+        description: "Запись о семье успешно удалена из базы данных",
+      })
+    } catch (error) {
+      console.error("Error deleting family:", error)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось удалить семью",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleExport = () => {
@@ -72,7 +119,7 @@ export function FamilyDataTable({ role, initialFamilies = [] }: FamilyDataTableP
       family.address?.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
-  // Мобильная карточка для семьи
+  // MobileFamilyCard component (unchanged)
   const MobileFamilyCard = ({ family }: { family: Family }) => (
     <Card className="mb-3 enhanced-card">
       <CardContent className="p-3">
@@ -123,7 +170,7 @@ export function FamilyDataTable({ role, initialFamilies = [] }: FamilyDataTableP
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {roleConfig.permissions.canEditFamily && (
-                <Link href={`/family/${family.id}?role=${role}`}>
+                <Link href={`/family/${family.id}/edit?role=${role}`}>
                   <DropdownMenuItem>
                     <Edit className="h-4 w-4 mr-2" />
                     Редактировать
@@ -210,8 +257,12 @@ export function FamilyDataTable({ role, initialFamilies = [] }: FamilyDataTableP
             </div>
           </div>
 
-          {isMobile ? (
-            // Мобильный вид - карточки
+          {isLoading ? (
+            <div className="text-center py-8">
+              <p className="text-lg font-medium">Загрузка...</p>
+            </div>
+          ) : isMobile ? (
+            // Mobile view - cards
             <div className="mt-4">
               {filteredData.length > 0 ? (
                 filteredData.map((family) => <MobileFamilyCard key={family.id} family={family} />)
@@ -227,7 +278,7 @@ export function FamilyDataTable({ role, initialFamilies = [] }: FamilyDataTableP
               )}
             </div>
           ) : (
-            // Десктопный вид - таблица
+            // Desktop view - table
             <div className="rounded-md border overflow-hidden">
               <Table className="enhanced-table">
                 <TableHeader>
@@ -291,7 +342,7 @@ export function FamilyDataTable({ role, initialFamilies = [] }: FamilyDataTableP
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Link href={`/family/${family.id}?role=${role}`}>
+                                    <Link href={`/family/${family.id}/edit?role=${role}`}>
                                       <Button
                                         variant="ghost"
                                         size="icon"

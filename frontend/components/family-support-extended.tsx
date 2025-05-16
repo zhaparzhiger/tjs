@@ -1,13 +1,19 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
+import type React from "react";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -16,154 +22,196 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { DatePicker } from "@/components/date-picker"
-import { PlusCircle, Edit, Trash2, AlertCircle, CheckCircle2, Clock, FileText, History } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import type { UserRole } from "@/types/roles"
-import { FamilyService } from "@/services/family-service"
-import type { SupportMeasure } from "@/types/models"
-import { useIsMobile } from "@/hooks/use-mobile"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { DatePicker } from "@/components/date-picker";
+import { PlusCircle, Edit, Trash2, AlertCircle, CheckCircle2, Clock, FileText, History } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { FamilyService } from "@/services/family-service";
+import type { Family, SupportMeasure } from "@/types/models";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/context/auth-context";
 
 interface FamilySupportExtendedProps {
-  family: any
-  role: UserRole
+  family: Pick<Family, "id" | "familyName">;
+  role: string;
 }
 
 export function FamilySupportExtended({ family, role }: FamilySupportExtendedProps) {
-  const { toast } = useToast()
-  const [isAddSupportOpen, setIsAddSupportOpen] = useState(false)
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
-  const [supportType, setSupportType] = useState("social")
-  const [activeTab, setActiveTab] = useState("social")
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [isAddSupportOpen, setIsAddSupportOpen] = useState(false);
+  const [isEditSupportOpen, setIsEditSupportOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [editingMeasure, setEditingMeasure] = useState<SupportMeasure | null>(null);
+  const [supportType, setSupportType] = useState("social");
+  const [activeTab, setActiveTab] = useState("social");
+  const [supportMeasures, setSupportMeasures] = useState<SupportMeasure[]>([]);
+  const isMobile = useIsMobile();
 
-  // Данные о социальной поддержке
-  const [socialSupport, setSocialSupport] = useState<SupportMeasure[]>(() => {
-    // Получаем меры поддержки из localStorage
-    const allSupport = FamilyService.getFamilySupport(family.id)
-    return allSupport.filter((s) => s.category === "social") || []
-  })
+  useEffect(() => {
+    if (!family.id) {
+      toast({
+        title: "Ошибка",
+        description: "Идентификатор семьи отсутствует",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  const [educationSupport, setEducationSupport] = useState<SupportMeasure[]>(() => {
-    // Получаем меры поддержки из localStorage
-    const allSupport = FamilyService.getFamilySupport(family.id)
-    return allSupport.filter((s) => s.category === "education") || []
-  })
+    const fetchSupportMeasures = async () => {
+      try {
+        console.log("Fetching support measures for familyId:", family.id);
+        const data = await FamilyService.getFamilySupport(family.id);
+        console.log("Fetched support measures:", data);
+        setSupportMeasures(data);
+      } catch (error: any) {
+        console.error("Fetch error:", error);
+        toast({
+          title: "Ошибка",
+          description: error.message || "Не удалось загрузить меры поддержки",
+          variant: "destructive",
+        });
+      }
+    };
+    fetchSupportMeasures();
+  }, [family.id, toast]);
 
-  const [healthSupport, setHealthSupport] = useState<SupportMeasure[]>(() => {
-    // Получаем меры поддержки из localStorage
-    const allSupport = FamilyService.getFamilySupport(family.id)
-    return allSupport.filter((s) => s.category === "health") || []
-  })
+  const handleAddSupport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log("handleAddSupport triggered");
+    const form = e.target as HTMLFormElement;
+    const category = (form.querySelector("#supportCategory") as HTMLSelectElement)?.value;
+    const type = (form.querySelector("#supportType") as HTMLSelectElement)?.value;
+    const amount = (form.querySelector("#amount") as HTMLInputElement)?.value;
+    const status = (form.querySelector("#status") as HTMLSelectElement)?.value;
+    const notes = (form.querySelector("#notes") as HTMLTextAreaElement)?.value || "";
+    const date = (form.querySelector("#date-picker") as HTMLInputElement)?.value || new Date().toISOString();
 
-  const [policeSupport, setPoliceSupport] = useState<SupportMeasure[]>(() => {
-    // Получаем меры поддержки из localStorage
-    const allSupport = FamilyService.getFamilySupport(family.id)
-    return allSupport.filter((s) => s.category === "police") || []
-  })
+    if (!category || !type || !status) {
+      console.error("Missing required fields:", { category, type, status });
+      toast({
+        title: "Ошибка",
+        description: "Заполните все обязательные поля (категория, тип, статус)",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  const [legalMeasures, setLegalMeasures] = useState<SupportMeasure[]>(() => {
-    // Получаем меры поддержки из localStorage
-    const allSupport = FamilyService.getFamilySupport(family.id)
-    return allSupport.filter((s) => s.category === "legal") || []
-  })
-
-  const [charitySupport, setCharitySupport] = useState<SupportMeasure[]>(() => {
-    // Получаем меры поддержки из localStorage
-    const allSupport = FamilyService.getFamilySupport(family.id)
-    return allSupport.filter((s) => s.category === "charity") || []
-  })
-
-  // История мер поддержки
-  const [supportHistory, setSupportHistory] = useState<SupportMeasure[]>([
-    {
-      id: 101,
+    const newMeasure: Omit<SupportMeasure, "id" | "createdAt"> = {
       familyId: family.id,
-      category: "social",
-      type: "АСП",
-      amount: "45",
-      date: "15.01.2023",
-      status: "Оказано",
-      notes: "Ежемесячная выплата",
-      createdAt: "15.01.2023",
-      createdBy: "Иванов И.И.",
-    },
-    {
-      id: 102,
-      familyId: family.id,
-      category: "education",
-      type: "Всеобуч",
-      amount: "25",
-      date: "20.02.2023",
-      status: "Оказано",
-      notes: "Школьные принадлежности",
-      createdAt: "20.02.2023",
-      createdBy: "Петров П.П.",
-    },
-    {
-      id: 103,
-      familyId: family.id,
-      category: "health",
-      type: "Прикрепление к медучреждению",
-      amount: "0",
-      date: "10.03.2023",
-      status: "Оказано",
-      notes: "Поликлиника №2",
-      createdAt: "10.03.2023",
-      createdBy: "Сидоров С.С.",
-    },
-  ])
-
-  const handleAddSupport = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    // Получаем данные из формы
-    const form = e.target as HTMLFormElement
-    const type = (form.querySelector("#supportType") as HTMLSelectElement).value
-    const amount = (form.querySelector("#amount") as HTMLInputElement).value
-    const status = (form.querySelector("#status") as HTMLSelectElement).value
-    const notes = (form.querySelector("#notes") as HTMLTextAreaElement)?.value || ""
-
-    // Создаем новую меру поддержки
-    const measure: Omit<SupportMeasure, "id" | "createdAt"> = {
-      familyId: family.id,
-      category: supportType,
+      category,
       type,
-      amount,
-      date: new Date().toLocaleDateString("ru-RU"),
+      amount: amount || "0",
+      date,
       status: status === "provided" ? "Оказано" : status === "in-progress" ? "В процессе" : "Отказано",
       notes,
-      createdBy: "Текущий пользователь",
+      createdBy: user?.fullName || user?.username || "System",
+    };
+
+    try {
+      console.log("Adding new support measure:", newMeasure);
+      const createdMeasure = await FamilyService.addSupportMeasure(newMeasure, user?.id || "unknown");
+      console.log("Created measure:", createdMeasure);
+      setSupportMeasures([...supportMeasures, createdMeasure]);
+      setIsAddSupportOpen(false);
+      toast({
+        title: "Мера поддержки добавлена",
+        description: "Новая мера поддержки успешно добавлена",
+      });
+    } catch (error: any) {
+      console.error("Add support error:", error);
+      toast({
+        title: "Ошибка",
+        description: error.message || "Не удалось добавить меру поддержки",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditSupport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMeasure) return;
+
+    console.log("handleEditSupport triggered for measure:", editingMeasure.id);
+    const form = e.target as HTMLFormElement;
+    const category = (form.querySelector("#supportCategory") as HTMLSelectElement)?.value;
+    const type = (form.querySelector("#supportType") as HTMLSelectElement)?.value;
+    const amount = (form.querySelector("#amount") as HTMLInputElement)?.value;
+    const status = (form.querySelector("#status") as HTMLSelectElement)?.value;
+    const notes = (form.querySelector("#notes") as HTMLTextAreaElement)?.value || "";
+    const date = (form.querySelector("#date-picker") as HTMLInputElement)?.value || new Date().toISOString();
+
+    if (!category || !type || !status) {
+      console.error("Missing required fields:", { category, type, status });
+      toast({
+        title: "Ошибка",
+        description: "Заполните все обязательные поля (категория, тип, статус)",
+        variant: "destructive",
+      });
+      return;
     }
 
-    // Сохраняем меру поддержки в localStorage
-    const newMeasure = FamilyService.addSupportMeasure(measure, "Текущий пользователь")
+    const updatedMeasure: SupportMeasure = {
+      ...editingMeasure,
+      category,
+      type,
+      amount: amount || "0",
+      date,
+      status: status === "provided" ? "Оказано" : status === "in-progress" ? "В процессе" : "Отказано",
+      notes,
+    };
 
-    // Обновляем соответствующий список мер поддержки
-    if (supportType === "social") {
-      setSocialSupport([...socialSupport, newMeasure])
-    } else if (supportType === "education") {
-      setEducationSupport([...educationSupport, newMeasure])
-    } else if (supportType === "health") {
-      setHealthSupport([...healthSupport, newMeasure])
-    } else if (supportType === "police") {
-      setPoliceSupport([...policeSupport, newMeasure])
-    } else if (supportType === "legal") {
-      setLegalMeasures([...legalMeasures, newMeasure])
-    } else if (supportType === "charity") {
-      setCharitySupport([...charitySupport, newMeasure])
+    try {
+      console.log("Updating support measure:", updatedMeasure);
+      const updated = await FamilyService.updateSupportMeasure(updatedMeasure, user?.id || "unknown");
+      console.log("Updated measure:", updated);
+      setSupportMeasures(
+        supportMeasures.map((m) => (m.id === updatedMeasure.id ? updated : m)),
+      );
+      setIsEditSupportOpen(false);
+      setEditingMeasure(null);
+      toast({
+        title: "Мера поддержки обновлена",
+        description: "Мера поддержки успешно обновлена",
+      });
+    } catch (error: any) {
+      console.error("Update support error:", error);
+      toast({
+        title: "Ошибка",
+        description: error.message || "Не удалось обновить меру поддержки",
+        variant: "destructive",
+      });
     }
+  };
 
-    setIsAddSupportOpen(false)
-    toast({
-      title: "Мера поддержки добавлена",
-      description: "Новая мера поддержки успешно добавлена",
-    })
-  }
+  const handleDeleteMeasure = async (measureId: string) => {
+    console.log("handleDeleteMeasure triggered for measureId:", measureId);
+    try {
+      await FamilyService.deleteSupportMeasure(measureId);
+      setSupportMeasures(supportMeasures.filter((m) => m.id !== measureId));
+      toast({
+        title: "Мера поддержки удалена",
+        description: "Мера поддержки успешно удалена",
+      });
+    } catch (error: any) {
+      console.error("Delete support error:", error);
+      toast({
+        title: "Ошибка",
+        description: error.message || "Не удалось удалить меру поддержки",
+        variant: "destructive",
+      });
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -173,32 +221,32 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
             <CheckCircle2 className="h-3 w-3" />
             Оказано
           </Badge>
-        )
+        );
       case "В процессе":
         return (
           <Badge className="bg-yellow-600 flex items-center gap-1">
-            <Clock className="h-3 w-3" />В процессе
+            <Clock className="h-3 w-3" />
+            В процессе
           </Badge>
-        )
+        );
       case "Отказано":
         return (
           <Badge className="bg-red-600 flex items-center gap-1">
             <AlertCircle className="h-3 w-3" />
             Отказано
           </Badge>
-        )
+        );
       default:
-        return <Badge variant="outline">{status}</Badge>
+        return <Badge variant="outline">{status}</Badge>;
     }
-  }
+  };
 
-  // Проверка доступа к функциям в зависимости от роли
-  const canEditSocial = ["admin", "district", "social"].includes(role)
-  const canEditEducation = ["admin", "district", "school"].includes(role)
-  const canEditHealth = ["admin", "district", "health"].includes(role)
-  const canEditPolice = ["admin", "district", "police"].includes(role)
-  const canEditLegal = ["admin", "district", "police"].includes(role)
-  const canEditCharity = ["admin", "district", "social"].includes(role)
+  const canEditSocial = ["admin", "district", "social"].includes(role);
+  const canEditEducation = ["admin", "district", "school"].includes(role);
+  const canEditHealth = ["admin", "district", "health"].includes(role);
+  const canEditPolice = ["admin", "district", "police"].includes(role);
+  const canEditLegal = ["admin", "district", "police"].includes(role);
+  const canEditCharity = ["admin", "district", "social"].includes(role);
 
   const renderSupportTable = (supports: SupportMeasure[], canEdit: boolean) => {
     if (supports.length === 0) {
@@ -210,12 +258,11 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
             Добавьте новую меру поддержки, нажав на кнопку «Добавить меру поддержки»
           </p>
         </div>
-      )
+      );
     }
 
     return (
       <>
-        {/* Десктопная версия таблицы */}
         <div className="rounded-md border desktop-support-table">
           <Table>
             <TableHeader>
@@ -236,10 +283,25 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                   <TableCell>{getStatusBadge(support.status)}</TableCell>
                   <TableCell>
                     <div className="flex space-x-1">
-                      <Button variant="ghost" size="icon" disabled={!canEdit}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={!canEdit}
+                        onClick={() => {
+                          console.log("Edit button clicked for measure:", support.id);
+                          setEditingMeasure(support);
+                          setSupportType(support.category);
+                          setIsEditSupportOpen(true);
+                        }}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" disabled={!canEdit}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={!canEdit}
+                        onClick={() => handleDeleteMeasure(support.id)}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -250,7 +312,6 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
           </Table>
         </div>
 
-        {/* Мобильная версия в виде карточек */}
         <div className="mobile-support-cards">
           {supports.map((support) => (
             <div key={support.id} className="mobile-table-card">
@@ -273,11 +334,26 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                 </div>
               )}
               <div className="mobile-table-card-actions">
-                <Button variant="outline" size="sm" disabled={!canEdit}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!canEdit}
+                  onClick={() => {
+                    console.log("Edit button clicked for measure:", support.id);
+                    setEditingMeasure(support);
+                    setSupportType(support.category);
+                    setIsEditSupportOpen(true);
+                  }}
+                >
                   <Edit className="mr-1 h-4 w-4" />
                   Изменить
                 </Button>
-                <Button variant="outline" size="sm" disabled={!canEdit}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!canEdit}
+                  onClick={() => handleDeleteMeasure(support.id)}
+                >
                   <Trash2 className="mr-1 h-4 w-4" />
                   Удалить
                 </Button>
@@ -286,20 +362,139 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
           ))}
         </div>
       </>
-    )
-  }
+    );
+  };
 
-  const isMobile = useIsMobile()
+  const categoryMap: { [key: string]: string } = {
+    social: "Социальная защита",
+    education: "Образование",
+    health: "Здравоохранение",
+    police: "Полиция",
+    legal: "Правовые меры",
+    charity: "Благотворительность",
+  };
 
-  const handleEditMeasure = (measure: SupportMeasure) => {
-    // TODO: Implement edit functionality
-    console.log("Edit measure", measure)
-  }
+  const typeOptions: { [key: string]: { value: string; label: string }[] } = {
+    social: [
+      { value: "asp", label: "АСП" },
+      { value: "zhp", label: "ЖП" },
+      { value: "one-time", label: "Единовременная помощь" },
+      { value: "fuel", label: "Социальная помощь на топливо" },
+      { value: "charity", label: "Благотворительная помощь" },
+      { value: "employment", label: "Трудоустройство" },
+      { value: "ssu", label: "ССУ" },
+    ],
+    education: [
+      { value: "vseobuch", label: "Всеобуч" },
+      { value: "psychology", label: "Психологическая консультация" },
+      { value: "kindergarten", label: "Постановка на очередь в ДДУ" },
+      { value: "school", label: "Оформление в СОШ" },
+    ],
+    health: [
+      { value: "attachment", label: "Прикрепление к медучреждению" },
+      { value: "disability", label: "Установление инвалидности" },
+      { value: "treatment", label: "Оказание лечения" },
+      { value: "ambulatory", label: "Амбулаторное лечение" },
+      { value: "stationary", label: "Стационарное лечение" },
+      { value: "medical-facility", label: "Определение в медучреждение" },
+    ],
+    police: [
+      { value: "prevention", label: "Профилактическая беседа" },
+      { value: "registration", label: "Постановка на учет в ОВД" },
+      { value: "involvement-act", label: "Акт привлечения" },
+    ],
+    legal: [
+      { value: "restrictions", label: "Приняты ограничения в родительских правах" },
+      { value: "deprivation", label: "Принято решение о лишении родительских прав" },
+      { value: "kdn", label: "Рассмотрение на КДН" },
+    ],
+    charity: [
+      { value: "financial", label: "Финансовая помощь" },
+      { value: "material", label: "Материальная помощь" },
+      { value: "clothing", label: "Одежда и обувь" },
+      { value: "food", label: "Продукты питания" },
+      { value: "school-supplies", label: "Школьные принадлежности" },
+    ],
+  };
 
-  const handleDeleteMeasure = (measureId: number) => {
-    // TODO: Implement delete functionality
-    console.log("Delete measure", measureId)
-  }
+  const filteredSupport = (category: string) =>
+    supportMeasures.filter((measure) => measure.category.toLowerCase() === category);
+
+  const renderSupportForm = (isEdit: boolean, measure?: SupportMeasure) => (
+    <form onSubmit={isEdit ? handleEditSupport : handleAddSupport}>
+      <div className="grid gap-4 py-4">
+        <div className="grid gap-2">
+          <Label htmlFor="supportCategory">Категория</Label>
+          <Select value={supportType} onValueChange={setSupportType} name="supportCategory">
+            <SelectTrigger id="supportCategory">
+              <SelectValue placeholder="Выберите категорию" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(categoryMap).map(([key, label]) => (
+                <SelectItem key={key} value={key}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor="supportType">Тип поддержки</Label>
+          <Select defaultValue={measure?.type} name="supportType">
+            <SelectTrigger id="supportType">
+              <SelectValue placeholder="Выберите тип" />
+            </SelectTrigger>
+            <SelectContent>
+              {typeOptions[supportType].map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor="amount">Сумма (тыс. тенге)</Label>
+          <Input
+            id="amount"
+            name="amount"
+            type="text"
+            defaultValue={measure?.amount}
+            placeholder="0"
+          />
+        </div>
+
+        <div className="grid gap-2">
+          <Label>Дата оказания</Label>
+          <DatePicker id="date-picker" name="date-picker" defaultValue={measure?.date} />
+        </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor="status">Статус</Label>
+          <Select defaultValue={measure?.status.toLowerCase() || "provided"} name="status">
+            <SelectTrigger id="status">
+              <SelectValue placeholder="Выберите статус" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="provided">Оказано</SelectItem>
+              <SelectItem value="in-progress">В процессе</SelectItem>
+              <SelectItem value="rejected">Отказано</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor="notes">Примечания</Label>
+          <Textarea id="notes" name="notes" defaultValue={measure?.notes} />
+        </div>
+      </div>
+      <DialogFooter>
+        <Button type="submit">{isEdit ? "Сохранить" : "Добавить"}</Button>
+      </DialogFooter>
+    </form>
+  );
 
   return (
     <Card>
@@ -323,123 +518,16 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                   <DialogTitle>Добавить меру поддержки</DialogTitle>
                   <DialogDescription>Заполните информацию о новой мере поддержки</DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleAddSupport}>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="supportCategory">Категория</Label>
-                      <Select value={supportType} onValueChange={setSupportType}>
-                        <SelectTrigger id="supportCategory">
-                          <SelectValue placeholder="Выберите категорию" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="social">Социальная защита</SelectItem>
-                          <SelectItem value="education">Образование</SelectItem>
-                          <SelectItem value="health">Здравоохранение</SelectItem>
-                          <SelectItem value="police">Полиция</SelectItem>
-                          <SelectItem value="legal">Правовые меры</SelectItem>
-                          <SelectItem value="charity">Благотворительность</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="supportType">Тип поддержки</Label>
-                      <Select>
-                        <SelectTrigger id="supportType">
-                          <SelectValue placeholder="Выберите тип" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {supportType === "social" && (
-                            <>
-                              <SelectItem value="asp">АСП</SelectItem>
-                              <SelectItem value="zhp">ЖП</SelectItem>
-                              <SelectItem value="one-time">Единовременная помощь</SelectItem>
-                              <SelectItem value="fuel">Социальная помощь на топливо</SelectItem>
-                              <SelectItem value="charity">Благотворительная помощь</SelectItem>
-                              <SelectItem value="employment">Трудоустройство</SelectItem>
-                              <SelectItem value="ssu">ССУ</SelectItem>
-                            </>
-                          )}
-                          {supportType === "education" && (
-                            <>
-                              <SelectItem value="vseobuch">Всеобуч</SelectItem>
-                              <SelectItem value="psychology">Психологическая консультация</SelectItem>
-                              <SelectItem value="kindergarten">Постановка на очередь в ДДУ</SelectItem>
-                              <SelectItem value="school">Оформление в СОШ</SelectItem>
-                            </>
-                          )}
-                          {supportType === "health" && (
-                            <>
-                              <SelectItem value="attachment">Прикрепление к медучреждению</SelectItem>
-                              <SelectItem value="disability">Установление инвалидности</SelectItem>
-                              <SelectItem value="treatment">Оказание лечения</SelectItem>
-                              <SelectItem value="ambulatory">Амбулаторное лечение</SelectItem>
-                              <SelectItem value="stationary">Стационарное лечение</SelectItem>
-                              <SelectItem value="medical-facility">
-                                Определение в медучреждение (реабилитационный центр, хоспис и т.д.)
-                              </SelectItem>
-                            </>
-                          )}
-                          {supportType === "police" && (
-                            <>
-                              <SelectItem value="prevention">Профилактическая беседа</SelectItem>
-                              <SelectItem value="registration">Постановка на учет в ОВД</SelectItem>
-                              <SelectItem value="involvement-act">Акт привлечения</SelectItem>
-                            </>
-                          )}
-                          {supportType === "legal" && (
-                            <>
-                              <SelectItem value="restrictions">Приняты ограничения в родительских правах</SelectItem>
-                              <SelectItem value="deprivation">Принято решение о лишении родительских прав</SelectItem>
-                              <SelectItem value="kdn">Рассмотрение на КДН</SelectItem>
-                            </>
-                          )}
-                          {supportType === "charity" && (
-                            <>
-                              <SelectItem value="financial">Финансовая помощь</SelectItem>
-                              <SelectItem value="material">Материальная помощь</SelectItem>
-                              <SelectItem value="clothing">Одежда и обувь</SelectItem>
-                              <SelectItem value="food">Продукты питания</SelectItem>
-                              <SelectItem value="school-supplies">Школьные принадлежности</SelectItem>
-                            </>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="amount">Сумма (тыс. тенге)</Label>
-                      <Input id="amount" type="text" />
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label>Дата оказания</Label>
-                      <DatePicker />
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="status">Статус</Label>
-                      <Select defaultValue="provided">
-                        <SelectTrigger id="status">
-                          <SelectValue placeholder="Выберите статус" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="provided">Оказано</SelectItem>
-                          <SelectItem value="in-progress">В процессе</SelectItem>
-                          <SelectItem value="rejected">Отказано</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="notes">Примечания</Label>
-                      <Textarea id="notes" />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button type="submit">Добавить</Button>
-                  </DialogFooter>
-                </form>
+                {renderSupportForm(false)}
+              </DialogContent>
+            </Dialog>
+            <Dialog open={isEditSupportOpen} onOpenChange={setIsEditSupportOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Редактировать меру поддержки</DialogTitle>
+                  <DialogDescription>Обновите информацию о мере поддержки</DialogDescription>
+                </DialogHeader>
+                {renderSupportForm(true, editingMeasure)}
               </DialogContent>
             </Dialog>
           </div>
@@ -449,32 +537,19 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
         <Tabs defaultValue="social" className="space-y-4" value={activeTab} onValueChange={setActiveTab}>
           <div className="scrollable-tabs-container">
             <TabsList className="scrollable-tabs-list">
-              <TabsTrigger value="social" className="scrollable-tab">
-                Социальная защита
-              </TabsTrigger>
-              <TabsTrigger value="education" className="scrollable-tab">
-                Образование
-              </TabsTrigger>
-              <TabsTrigger value="health" className="scrollable-tab">
-                Здравоохранение
-              </TabsTrigger>
-              <TabsTrigger value="police" className="scrollable-tab">
-                Полиция
-              </TabsTrigger>
-              <TabsTrigger value="legal" className="scrollable-tab">
-                Правовые меры
-              </TabsTrigger>
-              <TabsTrigger value="charity" className="scrollable-tab">
-                Благотворительность
-              </TabsTrigger>
+              {Object.entries(categoryMap).map(([key, label]) => (
+                <TabsTrigger key={key} value={key} className="scrollable-tab">
+                  {label}
+                </TabsTrigger>
+              ))}
             </TabsList>
           </div>
 
           <TabsContent value="social">
             {isMobile ? (
               <div className="space-y-4">
-                {socialSupport.map((measure, index) => (
-                  <div key={index} className="support-card">
+                {filteredSupport("social").map((measure) => (
+                  <div key={measure.id} className="support-card">
                     <div className="support-card-header">{measure.type}</div>
                     <div className="support-card-content">
                       <div className="support-card-item">
@@ -491,10 +566,25 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                       </div>
                     </div>
                     <div className="support-card-actions">
-                      <Button variant="outline" size="sm" onClick={() => handleEditMeasure(measure)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!canEditSocial}
+                        onClick={() => {
+                          console.log("Edit button clicked for measure:", measure.id);
+                          setEditingMeasure(measure);
+                          setSupportType(measure.category);
+                          setIsEditSupportOpen(true);
+                        }}
+                      >
                         Изменить
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDeleteMeasure(measure.id)}>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={!canEditSocial}
+                        onClick={() => handleDeleteMeasure(measure.id)}
+                      >
                         Удалить
                       </Button>
                     </div>
@@ -502,15 +592,15 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                 ))}
               </div>
             ) : (
-              renderSupportTable(socialSupport, canEditSocial)
+              renderSupportTable(filteredSupport("social"), canEditSocial)
             )}
           </TabsContent>
 
           <TabsContent value="education">
             {isMobile ? (
               <div className="space-y-4">
-                {educationSupport.map((measure, index) => (
-                  <div key={index} className="support-card">
+                {filteredSupport("education").map((measure) => (
+                  <div key={measure.id} className="support-card">
                     <div className="support-card-header">{measure.type}</div>
                     <div className="support-card-content">
                       <div className="support-card-item">
@@ -527,10 +617,25 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                       </div>
                     </div>
                     <div className="support-card-actions">
-                      <Button variant="outline" size="sm" onClick={() => handleEditMeasure(measure)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!canEditEducation}
+                        onClick={() => {
+                          console.log("Edit button clicked for measure:", measure.id);
+                          setEditingMeasure(measure);
+                          setSupportType(measure.category);
+                          setIsEditSupportOpen(true);
+                        }}
+                      >
                         Изменить
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDeleteMeasure(measure.id)}>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={!canEditEducation}
+                        onClick={() => handleDeleteMeasure(measure.id)}
+                      >
                         Удалить
                       </Button>
                     </div>
@@ -538,15 +643,15 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                 ))}
               </div>
             ) : (
-              renderSupportTable(educationSupport, canEditEducation)
+              renderSupportTable(filteredSupport("education"), canEditEducation)
             )}
           </TabsContent>
 
           <TabsContent value="health">
             {isMobile ? (
               <div className="space-y-4">
-                {healthSupport.map((measure, index) => (
-                  <div key={index} className="support-card">
+                {filteredSupport("health").map((measure) => (
+                  <div key={measure.id} className="support-card">
                     <div className="support-card-header">{measure.type}</div>
                     <div className="support-card-content">
                       <div className="support-card-item">
@@ -563,10 +668,25 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                       </div>
                     </div>
                     <div className="support-card-actions">
-                      <Button variant="outline" size="sm" onClick={() => handleEditMeasure(measure)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!canEditHealth}
+                        onClick={() => {
+                          console.log("Edit button clicked for measure:", measure.id);
+                          setEditingMeasure(measure);
+                          setSupportType(measure.category);
+                          setIsEditSupportOpen(true);
+                        }}
+                      >
                         Изменить
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDeleteMeasure(measure.id)}>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={!canEditHealth}
+                        onClick={() => handleDeleteMeasure(measure.id)}
+                      >
                         Удалить
                       </Button>
                     </div>
@@ -574,15 +694,15 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                 ))}
               </div>
             ) : (
-              renderSupportTable(healthSupport, canEditHealth)
+              renderSupportTable(filteredSupport("health"), canEditHealth)
             )}
           </TabsContent>
 
           <TabsContent value="police">
             {isMobile ? (
               <div className="space-y-4">
-                {policeSupport.map((measure, index) => (
-                  <div key={index} className="support-card">
+                {filteredSupport("police").map((measure) => (
+                  <div key={measure.id} className="support-card">
                     <div className="support-card-header">{measure.type}</div>
                     <div className="support-card-content">
                       <div className="support-card-item">
@@ -599,10 +719,25 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                       </div>
                     </div>
                     <div className="support-card-actions">
-                      <Button variant="outline" size="sm" onClick={() => handleEditMeasure(measure)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!canEditPolice}
+                        onClick={() => {
+                          console.log("Edit button clicked for measure:", measure.id);
+                          setEditingMeasure(measure);
+                          setSupportType(measure.category);
+                          setIsEditSupportOpen(true);
+                        }}
+                      >
                         Изменить
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDeleteMeasure(measure.id)}>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={!canEditPolice}
+                        onClick={() => handleDeleteMeasure(measure.id)}
+                      >
                         Удалить
                       </Button>
                     </div>
@@ -610,15 +745,15 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                 ))}
               </div>
             ) : (
-              renderSupportTable(policeSupport, canEditPolice)
+              renderSupportTable(filteredSupport("police"), canEditPolice)
             )}
           </TabsContent>
 
           <TabsContent value="legal">
             {isMobile ? (
               <div className="space-y-4">
-                {legalMeasures.map((measure, index) => (
-                  <div key={index} className="support-card">
+                {filteredSupport("legal").map((measure) => (
+                  <div key={measure.id} className="support-card">
                     <div className="support-card-header">{measure.type}</div>
                     <div className="support-card-content">
                       <div className="support-card-item">
@@ -635,10 +770,25 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                       </div>
                     </div>
                     <div className="support-card-actions">
-                      <Button variant="outline" size="sm" onClick={() => handleEditMeasure(measure)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!canEditLegal}
+                        onClick={() => {
+                          console.log("Edit button clicked for measure:", measure.id);
+                          setEditingMeasure(measure);
+                          setSupportType(measure.category);
+                          setIsEditSupportOpen(true);
+                        }}
+                      >
                         Изменить
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDeleteMeasure(measure.id)}>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={!canEditLegal}
+                        onClick={() => handleDeleteMeasure(measure.id)}
+                      >
                         Удалить
                       </Button>
                     </div>
@@ -646,15 +796,15 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                 ))}
               </div>
             ) : (
-              renderSupportTable(legalMeasures, canEditLegal)
+              renderSupportTable(filteredSupport("legal"), canEditLegal)
             )}
           </TabsContent>
 
           <TabsContent value="charity">
             {isMobile ? (
               <div className="space-y-4">
-                {charitySupport.map((measure, index) => (
-                  <div key={index} className="support-card">
+                {filteredSupport("charity").map((measure) => (
+                  <div key={measure.id} className="support-card">
                     <div className="support-card-header">{measure.type}</div>
                     <div className="support-card-content">
                       <div className="support-card-item">
@@ -671,10 +821,25 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                       </div>
                     </div>
                     <div className="support-card-actions">
-                      <Button variant="outline" size="sm" onClick={() => handleEditMeasure(measure)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!canEditCharity}
+                        onClick={() => {
+                          console.log("Edit button clicked for measure:", measure.id);
+                          setEditingMeasure(measure);
+                          setSupportType(measure.category);
+                          setIsEditSupportOpen(true);
+                        }}
+                      >
                         Изменить
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDeleteMeasure(measure.id)}>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={!canEditCharity}
+                        onClick={() => handleDeleteMeasure(measure.id)}
+                      >
                         Удалить
                       </Button>
                     </div>
@@ -682,12 +847,11 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                 ))}
               </div>
             ) : (
-              renderSupportTable(charitySupport, canEditCharity)
+              renderSupportTable(filteredSupport("charity"), canEditCharity)
             )}
           </TabsContent>
         </Tabs>
 
-        {/* Диалог хронологии мер поддержки */}
         <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
@@ -697,7 +861,7 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
             <div className="space-y-4">
               <div className="relative">
                 <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-                {supportHistory.map((item, index) => (
+                {supportMeasures.map((item, index) => (
                   <div key={item.id} className="relative pl-10 pb-8">
                     <div className="absolute left-0 top-1 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white">
                       {index + 1}
@@ -707,16 +871,7 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                         <div>
                           <h4 className="font-medium">{item.type}</h4>
                           <p className="text-sm text-gray-500">
-                            Категория:{" "}
-                            {item.category === "social"
-                              ? "Социальная защита"
-                              : item.category === "education"
-                                ? "Образование"
-                                : item.category === "health"
-                                  ? "Здравоохранение"
-                                  : item.category === "police"
-                                    ? "Полиция"
-                                    : "Правовые меры"}
+                            Категория: {categoryMap[item.category.toLowerCase()] || item.category}
                           </p>
                         </div>
                         <div className="text-right">
@@ -726,9 +881,7 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                       </div>
                       <div className="mt-2 flex justify-between items-center">
                         <p className="text-sm">
-                          {item.amount && item.amount !== "0"
-                            ? `Сумма: ${item.amount} тыс. тенге`
-                            : "Без финансирования"}
+                          {item.amount && item.amount !== "0" ? `Сумма: ${item.amount} тыс. тенге` : "Без финансирования"}
                         </p>
                         {getStatusBadge(item.status)}
                       </div>
@@ -744,5 +897,5 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
         </Dialog>
       </CardContent>
     </Card>
-  )
+  );
 }
