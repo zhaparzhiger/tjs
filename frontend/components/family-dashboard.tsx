@@ -1,31 +1,31 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { Search, UserPlus, Filter, RefreshCw } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { FamilyDataTable } from "@/components/family-data-table"
-import { StatisticsCards } from "@/components/statistics-cards"
-import { type UserRole, roleConfigs } from "@/types/roles"
-import { Badge } from "@/components/ui/badge"
+import { useState } from "react";
+import Link from "next/link";
+import { Search, UserPlus, Filter, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { FamilyDataTable } from "@/components/family-data-table";
+import { StatisticsCards } from "@/components/statistics-cards";
+import { type UserRole, roleConfigs } from "@/types/roles";
+import { Badge } from "@/components/ui/badge";
 
 interface FamilyDashboardProps {
-  role: UserRole
+  role: UserRole;
 }
 
 export function FamilyDashboard({ role }: FamilyDashboardProps) {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const roleConfig = roleConfigs[role]
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const roleConfig = roleConfigs[role];
 
   const refreshData = () => {
-    setIsLoading(true)
+    setIsLoading(true);
     setTimeout(() => {
-      setIsLoading(false)
-    }, 1500)
-  }
+      setIsLoading(false);
+    }, 1500);
+  };
 
   return (
     <div className="grid gap-4 animate-fade-in w-full">
@@ -40,7 +40,7 @@ export function FamilyDashboard({ role }: FamilyDashboardProps) {
               <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
               Обновить
             </Button>
-            {roleConfig.permissions.canAddFamily && (
+            {roleConfig?.permissions?.canAddFamily && (
               <Link href={`/family/new?role=${role}`}>
                 <Button size="sm">
                   <UserPlus className="mr-2 h-4 w-4" />
@@ -87,5 +87,5 @@ export function FamilyDashboard({ role }: FamilyDashboardProps) {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
