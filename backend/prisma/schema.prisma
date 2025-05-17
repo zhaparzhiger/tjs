@@ -34,6 +34,8 @@ model User {
   documents              Document[]
   notifications          Notification[]   @relation("NotificationCreator")
   notificationsReceived  Notification[]   @relation("NotificationRecipient")
+
+  FamilyHistory FamilyHistory[]
 }
 
 model Family {
@@ -86,7 +88,6 @@ model Family {
   supportMeasures SupportMeasure[]
   documents       Document[]
   history         FamilyHistory[]
-  HistoryRecord   HistoryRecord[]
 }
 
 model FamilyMember {
@@ -136,7 +137,6 @@ model FamilyMember {
   family          Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
   supportMeasures SupportMeasure[]
   documents       Document[]
-  HistoryRecord   HistoryRecord[]
 }
 
 model SupportMeasure {
@@ -220,24 +220,7 @@ model FamilyHistory {
 
   // Relations
   family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
-}
-
-model HistoryRecord {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  familyId    String   @db.ObjectId
-  memberId    String?  @db.ObjectId
-  action      String
-  description String
-  date        DateTime @default(now())
-  user        String
-  details     String?
-
-  family Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  member FamilyMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
-
-  @@index([familyId])
-  @@index([memberId])
-  @@index([date])
+  user   User   @relation(fields: [userId], references: [id])
 }
 
 model Notification {

@@ -1,12 +1,9 @@
 const { PrismaClient } = require("@prisma/client")
 const prisma = new PrismaClient()
 
-// Get all support measures for a family
 const getFamilySupport = async (req, res) => {
   try {
     const { familyId } = req.params
-
-    // Check if family exists
     const family = await prisma.family.findUnique({
       where: { id: familyId },
     })
@@ -15,7 +12,6 @@ const getFamilySupport = async (req, res) => {
       return res.status(404).json({ message: "Family not found" })
     }
 
-    // Check if user has access to this family
     if (req.familyFilter) {
       const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => family[key] === value)
       if (!hasAccess) {
@@ -65,11 +61,9 @@ const getFamilySupport = async (req, res) => {
   }
 }
 
-// Get support measure by ID
 const getSupportMeasureById = async (req, res) => {
   try {
     const { id } = req.params
-
     const supportMeasure = await prisma.supportMeasure.findUnique({
       where: { id },
       include: {
@@ -100,7 +94,6 @@ const getSupportMeasureById = async (req, res) => {
       return res.status(404).json({ message: "Support measure not found" })
     }
 
-    // Check if user has access to this family
     if (req.familyFilter) {
       const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => supportMeasure.family[key] === value)
       if (!hasAccess) {
@@ -115,10 +108,9 @@ const getSupportMeasureById = async (req, res) => {
   }
 }
 
-// Create a new support measure
 const createSupportMeasure = async (req, res) => {
   try {
-    console.log("createSupportMeasure received:", req.body);
+    console.log("createSupportMeasure received:", req.body)
     const {
       familyId,
       memberId,
@@ -142,51 +134,43 @@ const createSupportMeasure = async (req, res) => {
       evaluationDate,
       effectiveness,
       createdById,
-    } = req.body;
+    } = req.body
 
-    // Validate family existence
     const family = await prisma.family.findUnique({
       where: { id: familyId },
-    });
-
+    })
     if (!family) {
-      console.log(`Family not found: ${familyId}`);
-      return res.status(404).json({ message: "Family not found" });
+      console.log(`Family not found: ${familyId}`)
+      return res.status(404).json({ message: "Family not found" })
     }
 
-    // Check user access based on familyFilter (if applicable)
     if (req.familyFilter) {
-      const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => family[key] === value);
+      const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => family[key] === value)
       if (!hasAccess) {
-        console.log(`Access denied for family: ${familyId}`);
-        return res.status(403).json({ message: "You do not have access to this family" });
+        console.log(`Access denied for family: ${familyId}`)
+        return res.status(403).json({ message: "You do not have access to this family" })
       }
     }
 
-    // Validate member existence (if provided)
     if (memberId) {
       const member = await prisma.familyMember.findUnique({
         where: { id: memberId },
-      });
-
+      })
       if (!member) {
-        console.log(`Member not found: ${memberId}`);
-        return res.status(404).json({ message: "Family member not found" });
+        console.log(`Member not found: ${memberId}`)
+        return res.status(404).json({ message: "Family member not found" })
       }
-
       if (member.familyId !== familyId) {
-        console.log(`Member ${memberId} does not belong to family ${familyId}`);
-        return res.status(400).json({ message: "Family member does not belong to this family" });
+        console.log(`Member ${memberId} does not belong to family ${familyId}`)
+        return res.status(400).json({ message: "Family member does not belong to this family" })
       }
     }
 
-    // Validate description
     if (!description) {
-      console.log("Description missing");
-      return res.status(400).json({ message: "Description is required" });
+      console.log("Description missing")
+      return res.status(400).json({ message: "Description is required" })
     }
 
-    // Create the support measure
     const newSupportMeasure = await prisma.supportMeasure.create({
       data: {
         family: {
@@ -195,7 +179,7 @@ const createSupportMeasure = async (req, res) => {
         memberId,
         type,
         description,
-        category: req.body.category, // Ensure category is included
+        category: req.body.category,
         startDate: new Date(startDate),
         endDate: endDate ? new Date(endDate) : null,
         status,
@@ -223,23 +207,19 @@ const createSupportMeasure = async (req, res) => {
         },
         member: true,
       },
-    });
+    })
 
-    console.log("Created support measure:", newSupportMeasure);
+    console.log("Created support measure:", newSupportMeasure)
 
-    // Create family history entry
     await prisma.familyHistory.create({
       data: {
         familyId,
-        action: "support_added",
-        description: `New support measure added: ${type}`,
+        action: "Добавление меры поддержки",
+        description: `Добавлена мера поддержки '${type}'${cost ? ` на сумму ${cost} тенге` : ''}`,
         userId: req.user.id,
-        changedFields: ["supportMeasure"],
-        newValues: { type, status, cost },
       },
-    });
+    })
 
-    // Update family updatedBy
     await prisma.family.update({
       where: { id: familyId },
       data: {
@@ -248,23 +228,22 @@ const createSupportMeasure = async (req, res) => {
         },
         lastUpdate: new Date(),
       },
-    });
+    })
 
     res.status(201).json({
       message: "Support measure created successfully",
       supportMeasure: newSupportMeasure,
-    });
+    })
   } catch (error) {
-    console.error("Error in createSupportMeasure controller:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Error in createSupportMeasure controller:", error)
+    res.status(500).json({ message: "Server error", error: error.message })
   }
-};
+}
 
-// Update support measure
 const updateSupportMeasure = async (req, res) => {
   try {
-    console.log("updateSupportMeasure received:", req.body, "ID:", req.params.id);
-    const { id } = req.params;
+    console.log("updateSupportMeasure received:", req.body, "ID:", req.params.id)
+    const { id } = req.params
     const {
       familyId,
       memberId,
@@ -289,55 +268,47 @@ const updateSupportMeasure = async (req, res) => {
       evaluationDate,
       effectiveness,
       createdById,
-    } = req.body;
+    } = req.body
 
-    // Validate support measure existence
     const existingMeasure = await prisma.supportMeasure.findUnique({
       where: { id },
-    });
-
+    })
     if (!existingMeasure) {
-      console.log(`Support measure not found: ${id}`);
-      return res.status(404).json({ message: "Support measure not found" });
+      console.log(`Support measure not found: ${id}`)
+      return res.status(404).json({ message: "Support measure not found" })
     }
 
-    // Validate family existence
     const family = await prisma.family.findUnique({
       where: { id: familyId },
-    });
-
+    })
     if (!family) {
-      console.log(`Family not found: ${familyId}`);
-      return res.status(404).json({ message: "Family not found" });
+      console.log(`Family not found: ${familyId}`)
+      return res.status(404).json({ message: "Family not found" })
     }
 
-    // Check user access
     if (req.familyFilter) {
-      const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => family[key] === value);
+      const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => family[key] === value)
       if (!hasAccess) {
-        console.log(`Access denied for family: ${familyId}`);
-        return res.status(403).json({ message: "You do not have access to this family" });
+        console.log(`Access denied for family: ${familyId}`)
+        return res.status(403).json({ message: "You do not have access to this family" })
       }
     }
 
-    // Validate member (if provided)
     if (memberId) {
       const member = await prisma.familyMember.findUnique({
         where: { id: memberId },
-      });
+      })
       if (!member || member.familyId !== familyId) {
-        console.log(`Invalid member: ${memberId}`);
-        return res.status(400).json({ message: "Invalid family member" });
+        console.log(`Invalid member: ${memberId}`)
+        return res.status(400).json({ message: "Invalid family member" })
       }
     }
 
-    // Validate description
     if (!description) {
-      console.log("Description missing");
-      return res.status(400).json({ message: "Description is required" });
+      console.log("Description missing")
+      return res.status(400).json({ message: "Description is required" })
     }
 
-    // Update support measure
     const updatedSupportMeasure = await prisma.supportMeasure.update({
       where: { id },
       data: {
@@ -369,49 +340,40 @@ const updateSupportMeasure = async (req, res) => {
         createdBy: { select: { id: true, username: true, fullName: true } },
         member: true,
       },
-    });
+    })
 
-    console.log("Updated support measure:", updatedSupportMeasure);
+    console.log("Updated support measure:", updatedSupportMeasure)
 
-    // Create family history entry
     await prisma.familyHistory.create({
       data: {
         familyId,
-        action: "support_updated",
-        description: `Support measure updated: ${type}`,
+        action: "Обновление меры поддержки",
+        description: `Обновлена мера поддержки '${type}'`,
         userId: req.user.id,
-        changedFields: ["supportMeasure"],
-        newValues: { type, status, cost },
       },
-    });
+    })
 
-    // Update family updatedBy
     await prisma.family.update({
       where: { id: familyId },
       data: {
         updatedBy: { connect: { id: req.user.id } },
         lastUpdate: new Date(),
       },
-    });
+    })
 
     res.status(200).json({
       message: "Support measure updated successfully",
       supportMeasure: updatedSupportMeasure,
-    });
+    })
   } catch (error) {
-    console.error("Error in updateSupportMeasure controller:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Error in updateSupportMeasure controller:", error)
+    res.status(500).json({ message: "Server error", error: error.message })
   }
-};
+}
 
-module.exports = { createSupportMeasure, updateSupportMeasure };
-
-// Delete support measure
 const deleteSupportMeasure = async (req, res) => {
   try {
     const { id } = req.params
-
-    // Check if support measure exists
     const existingSupportMeasure = await prisma.supportMeasure.findUnique({
       where: { id },
       include: { family: true },
@@ -421,7 +383,6 @@ const deleteSupportMeasure = async (req, res) => {
       return res.status(404).json({ message: "Support measure not found" })
     }
 
-    // Check if user has access to this family
     if (req.familyFilter) {
       const hasAccess = Object.entries(req.familyFilter).every(
         ([key, value]) => existingSupportMeasure.family[key] === value,
@@ -431,22 +392,19 @@ const deleteSupportMeasure = async (req, res) => {
       }
     }
 
-    // Delete support measure
     await prisma.supportMeasure.delete({
       where: { id },
     })
 
-    // Update family history
     await prisma.familyHistory.create({
       data: {
         familyId: existingSupportMeasure.familyId,
-        action: "support_removed",
-        description: `Support measure removed: ${existingSupportMeasure.type}`,
+        action: "Удаление меры поддержки",
+        description: `Удалена мера поддержки '${existingSupportMeasure.type}'`,
         userId: req.user.id,
       },
     })
 
-    // Update family lastUpdate
     await prisma.family.update({
       where: { id: existingSupportMeasure.familyId },
       data: {
@@ -463,19 +421,15 @@ const deleteSupportMeasure = async (req, res) => {
   }
 }
 
-// Get support measures by type
 const getSupportMeasuresByType = async (req, res) => {
   try {
     const { type } = req.params
-
-    // Get families user has access to
     let familyFilter = {}
     if (req.familyFilter) {
       const accessibleFamilies = await prisma.family.findMany({
         where: req.familyFilter,
         select: { id: true },
       })
-
       const familyIds = accessibleFamilies.map((family) => family.id)
       familyFilter = { familyId: { in: familyIds } }
     }
@@ -524,19 +478,15 @@ const getSupportMeasuresByType = async (req, res) => {
   }
 }
 
-// Get support measures by status
 const getSupportMeasuresByStatus = async (req, res) => {
   try {
     const { status } = req.params
-
-    // Get families user has access to
     let familyFilter = {}
     if (req.familyFilter) {
       const accessibleFamilies = await prisma.family.findMany({
         where: req.familyFilter,
         select: { id: true },
       })
-
       const familyIds = accessibleFamilies.map((family) => family.id)
       familyFilter = { familyId: { in: familyIds } }
     }

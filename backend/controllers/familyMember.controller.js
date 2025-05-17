@@ -1,48 +1,37 @@
 const { PrismaClient } = require("@prisma/client")
 const prisma = new PrismaClient()
 
-// Get all family members for a family
 async function getFamilyMembers(req, res) {
-  const { familyId } = req.params;
-
-  // Validate familyId
+  const { familyId } = req.params
   if (!familyId || familyId === 'undefined') {
-    return res.status(400).json({ message: 'Invalid or missing familyId' });
+    return res.status(400).json({ message: 'Invalid or missing familyId' })
   }
 
   try {
-    // Check if family exists
     const family = await prisma.family.findUnique({
       where: { id: familyId },
-    });
-
+    })
     if (!family) {
-      return res.status(404).json({ message: 'Family not found' });
+      return res.status(404).json({ message: 'Family not found' })
     }
 
-    // Fetch family members
     const members = await prisma.familyMember.findMany({
       where: { familyId },
-    });
+    })
 
-    return res.status(200).json(members);
+    return res.status(200).json(members)
   } catch (error) {
-    console.error('Error fetching family members:', error);
+    console.error('Error fetching family members:', error)
     if (error.code === 'P2023') {
-      return res.status(400).json({ message: 'Malformed familyId provided' });
+      return res.status(400).json({ message: 'Malformed familyId provided' })
     }
-    return res.status(500).json({ message: 'Internal server error' });
-  } finally {
-    await prisma.$disconnect();
+    return res.status(500).json({ message: 'Internal server error' })
   }
 }
 
-
-// Get family member by ID
 const getFamilyMemberById = async (req, res) => {
   try {
     const { id } = req.params
-
     const member = await prisma.familyMember.findUnique({
       where: { id },
       include: {
@@ -76,7 +65,6 @@ const getFamilyMemberById = async (req, res) => {
       return res.status(404).json({ message: "Family member not found" })
     }
 
-    // Check if user has access to this family
     if (req.familyFilter) {
       const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => member.family[key] === value)
       if (!hasAccess) {
@@ -91,16 +79,6 @@ const getFamilyMemberById = async (req, res) => {
   }
 }
 
-// Create a new family member
-// familyMember.controller.js
-// familyMember.controller.js
-// familyMember.controller.js
-// familyMember.controller.js
-// familyMember.controller.js
-// familyMember.controller.js
-// familyMember.controller.js
-// familyMember.controller.js
-// familyMember.controller.js
 async function createFamilyMember(req, res) {
   try {
     const {
@@ -124,7 +102,7 @@ async function createFamilyMember(req, res) {
       meals,
       notes,
       status,
-      isActive = true, // Default to true if not provided
+      isActive = true,
       citizenship,
       ethnicity,
       maritalStatus,
@@ -138,20 +116,17 @@ async function createFamilyMember(req, res) {
       chronicConditions,
       allergies,
       medications,
-      formStatus, // Ignored by backend
-    } = req.body;
+    } = req.body
 
-    // Validate required fields
     if (!familyId || !firstName || !lastName || !documentNumber) {
-      return res.status(400).json({ message: 'Required fields: familyId, firstName, lastName, documentNumber' });
+      return res.status(400).json({ message: 'Required fields: familyId, firstName, lastName, documentNumber' })
     }
     if (!relationship) {
-      return res.status(400).json({ message: 'Relationship is required' });
+      return res.status(400).json({ message: 'Relationship is required' })
     }
     if (!/^\d{12}$/.test(documentNumber)) {
-      return res.status(400).json({ message: 'Document number must be 12 digits' });
+      return res.status(400).json({ message: 'Document number must be 12 digits' })
     }
-    // Validate relationship
     const validRelationships = [
       "mother",
       "father",
@@ -161,28 +136,26 @@ async function createFamilyMember(req, res) {
       "grandfather",
       "guardian",
       "other",
-    ];
+    ]
     if (!relationship || !validRelationships.includes(relationship)) {
       return res.status(400).json({
         message: `Invalid relationship: must be one of ${validRelationships.join(", ")}`,
-      });
+      })
     }
     if (!status || !["Взрослый", "Студент", "Школьник", "Дошкольник"].includes(status)) {
-      return res.status(400).json({ message: 'Invalid status: must be Взрослый, Студент, Школьник, or Дошкольник' });
+      return res.status(400).json({ message: 'Invalid status: must be Взрослый, Студент, Школьник, or Дошкольник' })
     }
 
-    // Check if family exists
-    const family = await prisma.family.findUnique({ where: { id: familyId } });
+    const family = await prisma.family.findUnique({ where: { id: familyId } })
     if (!family) {
-      return res.status(404).json({ message: 'Family not found' });
+      return res.status(404).json({ message: 'Family not found' })
     }
 
-    // Check if documentNumber exists
     const existingMember = await prisma.familyMember.findUnique({
       where: { documentNumber },
-    });
+    })
     if (existingMember) {
-      return res.status(400).json({ message: 'A family member with this document number already exists' });
+      return res.status(400).json({ message: 'A family member with this document number already exists' })
     }
 
     const familyMember = await prisma.familyMember.create({
@@ -223,23 +196,39 @@ async function createFamilyMember(req, res) {
         medications: medications || [],
       },
       include: { family: true },
-    });
+    })
 
-    res.status(201).json(familyMember);
+    await prisma.familyHistory.create({
+      data: {
+        familyId,
+        action: "Добавление члена семьи",
+        description: `Добавлен член семьи '${firstName} ${lastName}'`,
+        userId: req.user.id,
+      },
+    })
+
+    await prisma.family.update({
+      where: { id: familyId },
+      data: {
+        updatedBy: {
+          connect: { id: req.user.id },
+        },
+      },
+    })
+
+    res.status(201).json(familyMember)
   } catch (error) {
-    console.error('Create family member error:', error);
+    console.error('Create family member error:', error)
     if (error.code === 'P2002') {
-      return res.status(400).json({ message: 'A family member with this document number already exists' });
+      return res.status(400).json({ message: 'A family member with this document number already exists' })
     }
     if (error.name === 'PrismaClientValidationError') {
-      return res.status(400).json({ message: `Invalid data provided: ${error.message}` });
+      return res.status(400).json({ message: `Invalid data provided: ${error.message}` })
     }
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: 'Internal server error' })
   }
 }
-module.exports = { createFamilyMember, /* ... other exports */ };
 
-// Update family member
 const updateFamilyMember = async (req, res) => {
   try {
     const { id } = req.params
@@ -274,7 +263,6 @@ const updateFamilyMember = async (req, res) => {
       medications,
     } = req.body
 
-    // Check if family member exists
     const existingMember = await prisma.familyMember.findUnique({
       where: { id },
       include: { family: true },
@@ -284,7 +272,6 @@ const updateFamilyMember = async (req, res) => {
       return res.status(404).json({ message: "Family member not found" })
     }
 
-    // Check if user has access to this family
     if (req.familyFilter) {
       const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => existingMember.family[key] === value)
       if (!hasAccess) {
@@ -292,7 +279,6 @@ const updateFamilyMember = async (req, res) => {
       }
     }
 
-    // Update family member
     const updatedMember = await prisma.familyMember.update({
       where: { id },
       data: {
@@ -327,17 +313,15 @@ const updateFamilyMember = async (req, res) => {
       },
     })
 
-    // Update family history
     await prisma.familyHistory.create({
       data: {
         familyId: existingMember.familyId,
-        action: "member_updated",
-        description: `Family member updated: ${firstName} ${lastName}`,
+        action: "Обновление члена семьи",
+        description: `Обновлен член семьи '${firstName} ${lastName}'`,
         userId: req.user.id,
       },
     })
 
-    // Update family lastUpdate
     await prisma.family.update({
       where: { id: existingMember.familyId },
       data: {
@@ -357,12 +341,9 @@ const updateFamilyMember = async (req, res) => {
   }
 }
 
-// Delete family member
 const deleteFamilyMember = async (req, res) => {
   try {
     const { id } = req.params
-
-    // Check if family member exists
     const existingMember = await prisma.familyMember.findUnique({
       where: { id },
       include: { family: true },
@@ -372,7 +353,6 @@ const deleteFamilyMember = async (req, res) => {
       return res.status(404).json({ message: "Family member not found" })
     }
 
-    // Check if user has access to this family
     if (req.familyFilter) {
       const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => existingMember.family[key] === value)
       if (!hasAccess) {
@@ -380,22 +360,19 @@ const deleteFamilyMember = async (req, res) => {
       }
     }
 
-    // Delete family member
     await prisma.familyMember.delete({
       where: { id },
     })
 
-    // Update family history
     await prisma.familyHistory.create({
       data: {
         familyId: existingMember.familyId,
-        action: "member_removed",
-        description: `Family member removed: ${existingMember.firstName} ${existingMember.lastName}`,
+        action: "Удаление члена семьи",
+        description: `Удален член семьи '${existingMember.firstName} ${existingMember.lastName}'`,
         userId: req.user.id,
       },
     })
 
-    // Update family lastUpdate
     await prisma.family.update({
       where: { id: existingMember.familyId },
       data: {
@@ -412,23 +389,19 @@ const deleteFamilyMember = async (req, res) => {
   }
 }
 
-// Search family members
 const searchFamilyMembers = async (req, res) => {
   try {
     const { query } = req.query
-
     if (!query) {
       return res.status(400).json({ message: "Search query is required" })
     }
 
-    // Get families user has access to
     let familyFilter = {}
     if (req.familyFilter) {
       const accessibleFamilies = await prisma.family.findMany({
         where: req.familyFilter,
         select: { id: true },
       })
-
       const familyIds = accessibleFamilies.map((family) => family.id)
       familyFilter = { familyId: { in: familyIds } }
     }

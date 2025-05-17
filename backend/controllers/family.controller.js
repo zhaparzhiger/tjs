@@ -4,7 +4,6 @@ const prisma = new PrismaClient()
 // Get all families with access control
 const getAllFamilies = async (req, res) => {
   try {
-    // Apply filter based on user's access level (set by middleware)
     const filter = req.familyFilter || {}
 
     const families = await prisma.family.findMany({
@@ -101,7 +100,6 @@ const getFamilyById = async (req, res) => {
       return res.status(404).json({ message: "Family not found" })
     }
 
-    // Check if user has access to this family
     if (req.familyFilter) {
       const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => family[key] === value)
       if (!hasAccess) {
@@ -157,7 +155,6 @@ const createFamily = async (req, res) => {
       hasInterpreterNeeded,
     } = req.body
 
-    // Check if user has access to create family in this region/district
     if (req.familyFilter) {
       if (req.familyFilter.region && req.familyFilter.region !== region) {
         return res.status(403).json({ message: "You can only create families in your region" })
@@ -170,7 +167,6 @@ const createFamily = async (req, res) => {
       }
     }
 
-    // Check if case number already exists
     const existingFamily = await prisma.family.findUnique({
       where: { caseNumber },
     })
@@ -179,7 +175,6 @@ const createFamily = async (req, res) => {
       return res.status(400).json({ message: "Case number already exists" })
     }
 
-    // Create new family
     const newFamily = await prisma.family.create({
       data: {
         caseNumber,
@@ -211,8 +206,8 @@ const createFamily = async (req, res) => {
         },
         history: {
           create: {
-            action: "created",
-            description: "Family record created",
+            action: "Создание записи",
+            description: "Создана запись о семье",
             userId: req.user.id,
           },
         },
@@ -272,7 +267,6 @@ const updateFamily = async (req, res) => {
       hasInterpreterNeeded,
     } = req.body
 
-    // Check if family exists
     const existingFamily = await prisma.family.findUnique({
       where: { id },
     })
@@ -281,7 +275,6 @@ const updateFamily = async (req, res) => {
       return res.status(404).json({ message: "Family not found" })
     }
 
-    // Check if user has access to this family
     if (req.familyFilter) {
       const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => existingFamily[key] === value)
       if (!hasAccess) {
@@ -289,7 +282,6 @@ const updateFamily = async (req, res) => {
       }
     }
 
-    // Check if user has access to update to this region/district
     if (req.familyFilter) {
       if (req.familyFilter.region && req.familyFilter.region !== region) {
         return res.status(403).json({ message: "You can only update families in your region" })
@@ -302,19 +294,17 @@ const updateFamily = async (req, res) => {
       }
     }
 
-    // Create history entry for status change if applicable
-    let historyAction = "updated"
-    let historyDescription = "Family information updated"
+    let historyAction = "Изменение данных"
+    let historyDescription = "Обновлена информация о семье"
 
     if (existingFamily.status !== status) {
-      historyAction = "status_changed"
-      historyDescription = `Status changed from ${existingFamily.status} to ${status}`
+      historyAction = "Изменение статуса"
+      historyDescription = `Статус изменен с '${existingFamily.status}' на '${status}'`
     } else if (existingFamily.isActive !== isActive) {
-      historyAction = isActive ? "activated" : "deactivated"
-      historyDescription = isActive ? "Family record activated" : `Family record deactivated. Reason: ${inactiveReason}`
+      historyAction = isActive ? "Активация записи" : "Деактивация записи"
+      historyDescription = isActive ? "Запись о семье активирована" : `Запись о семье деактивирована. Причина: ${inactiveReason}`
     }
 
-    // Update family
     const updatedFamily = await prisma.family.update({
       where: { id },
       data: {
@@ -382,7 +372,6 @@ const deleteFamily = async (req, res) => {
   try {
     const { id } = req.params
 
-    // Check if family exists
     const existingFamily = await prisma.family.findUnique({
       where: { id },
     })
@@ -391,7 +380,6 @@ const deleteFamily = async (req, res) => {
       return res.status(404).json({ message: "Family not found" })
     }
 
-    // Delete family and all related records (cascade delete configured in schema)
     await prisma.family.delete({
       where: { id },
     })
@@ -408,7 +396,6 @@ const getFamiliesByStatus = async (req, res) => {
   try {
     const { status } = req.params
 
-    // Apply filter based on user's access level (set by middleware)
     const filter = {
       ...req.familyFilter,
       status,
@@ -455,7 +442,6 @@ const getFamiliesByRiskLevel = async (req, res) => {
   try {
     const { riskLevel } = req.params
 
-    // Apply filter based on user's access level (set by middleware)
     const filter = {
       ...req.familyFilter,
       riskLevel,
@@ -502,7 +488,6 @@ const getFamilyHistory = async (req, res) => {
   try {
     const { id } = req.params
 
-    // Check if family exists
     const existingFamily = await prisma.family.findUnique({
       where: { id },
     })
@@ -511,7 +496,6 @@ const getFamilyHistory = async (req, res) => {
       return res.status(404).json({ message: "Family not found" })
     }
 
-    // Check if user has access to this family
     if (req.familyFilter) {
       const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => existingFamily[key] === value)
       if (!hasAccess) {
@@ -521,12 +505,34 @@ const getFamilyHistory = async (req, res) => {
 
     const history = await prisma.familyHistory.findMany({
       where: { familyId: id },
+      include: {
+        user: {
+          select: {
+            fullName: true,
+          },
+        },
+      },
       orderBy: {
         timestamp: "desc",
       },
     })
 
-    res.status(200).json(history)
+    // Format history for frontend
+    const formattedHistory = history.map((entry) => ({
+      id: entry.id,
+      date: new Date(entry.timestamp).toLocaleString("ru-RU", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      user: entry.user.fullName,
+      action: entry.action,
+      details: entry.description,
+    }))
+
+    res.status(200).json(formattedHistory)
   } catch (error) {
     console.error("Error in getFamilyHistory controller:", error)
     res.status(500).json({ message: "Server error" })
@@ -542,7 +548,6 @@ const searchFamilies = async (req, res) => {
       return res.status(400).json({ message: "Search query is required" })
     }
 
-    // Apply filter based on user's access level (set by middleware)
     const filter = {
       ...req.familyFilter,
       OR: [
