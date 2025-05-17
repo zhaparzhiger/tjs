@@ -204,31 +204,31 @@ const getDocumentById = async (req, res) => {
 const uploadDocument = async (req, res) => {
   upload(req, res, async (err) => {
     if (err) {
-      return res.status(400).json({ message: err.message })
+      return res.status(400).json({ message: err.message });
     }
 
     if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded" })
+      return res.status(400).json({ message: "No file uploaded" });
     }
 
     try {
-      const { title, type, familyId, memberId, supportId, notes } = req.body
+      const { title, type, familyId, memberId, supportId, notes, uploadDate } = req.body;
 
       // Check if family exists if familyId is provided
       if (familyId) {
         const family = await prisma.family.findUnique({
           where: { id: familyId },
-        })
+        });
 
         if (!family) {
-          return res.status(404).json({ message: "Family not found" })
+          return res.status(404).json({ message: "Family not found" });
         }
 
         // Check if user has access to this family
         if (req.familyFilter) {
-          const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => family[key] === value)
+          const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => family[key] === value);
           if (!hasAccess) {
-            return res.status(403).json({ message: "You do not have access to this family" })
+            return res.status(403).json({ message: "You do not have access to this family" });
           }
         }
       }
@@ -238,17 +238,17 @@ const uploadDocument = async (req, res) => {
         const member = await prisma.familyMember.findUnique({
           where: { id: memberId },
           include: { family: true },
-        })
+        });
 
         if (!member) {
-          return res.status(404).json({ message: "Family member not found" })
+          return res.status(404).json({ message: "Family member not found" });
         }
 
         // Check if user has access to this family
         if (req.familyFilter) {
-          const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => member.family[key] === value)
+          const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => member.family[key] === value);
           if (!hasAccess) {
-            return res.status(403).json({ message: "You do not have access to this family member" })
+            return res.status(403).json({ message: "You do not have access to this family member" });
           }
         }
       }
@@ -258,25 +258,27 @@ const uploadDocument = async (req, res) => {
         const supportMeasure = await prisma.supportMeasure.findUnique({
           where: { id: supportId },
           include: { family: true },
-        })
+        });
 
         if (!supportMeasure) {
-          return res.status(404).json({ message: "Support measure not found" })
+          return res.status(404).json({ message: "Support measure not found" });
         }
 
         // Check if user has access to this family
         if (req.familyFilter) {
           const hasAccess = Object.entries(req.familyFilter).every(
             ([key, value]) => supportMeasure.family[key] === value,
-          )
+          );
           if (!hasAccess) {
-            return res.status(403).json({ message: "You do not have access to this support measure" })
+            return res.status(403).json({ message: "You do not have access to this support measure" });
           }
         }
       }
 
-      // Create file URL (in a real app, this might be a cloud storage URL)
-      const fileUrl = `/uploads/${req.file.filename}`
+      // Create file URL with full backend URL and lowercase 'uploads'
+      const fileUrl = `http://localhost:5555/uploads/${req.file.filename}`;
+      console.log("Generated fileUrl:", fileUrl);
+      console.log("File saved at:", req.file.path);
 
       // Create new document
       const newDocument = await prisma.document.create({
@@ -286,10 +288,11 @@ const uploadDocument = async (req, res) => {
           fileUrl,
           mimeType: req.file.mimetype,
           fileSize: req.file.size,
-          familyId: familyId || null,
-          memberId: memberId || null,
-          supportId: supportId || null,
-          notes,
+          uploadDate: uploadDate ? new Date(uploadDate) : new Date(),
+          notes: notes || null,
+          family: familyId ? { connect: { id: familyId } } : undefined,
+          member: memberId ? { connect: { id: memberId } } : undefined,
+          supportMeasure: supportId ? { connect: { id: supportId } } : undefined,
           uploadedBy: {
             connect: { id: req.user.id },
           },
@@ -303,7 +306,7 @@ const uploadDocument = async (req, res) => {
             },
           },
         },
-      })
+      });
 
       // Update family history if familyId is provided
       if (familyId) {
@@ -314,7 +317,7 @@ const uploadDocument = async (req, res) => {
             description: `New document added: ${title}`,
             userId: req.user.id,
           },
-        })
+        });
 
         // Update family lastUpdate
         await prisma.family.update({
@@ -324,19 +327,19 @@ const uploadDocument = async (req, res) => {
               connect: { id: req.user.id },
             },
           },
-        })
+        });
       }
 
       res.status(201).json({
         message: "Document uploaded successfully",
         document: newDocument,
-      })
+      });
     } catch (error) {
-      console.error("Error in uploadDocument controller:", error)
-      res.status(500).json({ message: "Server error" })
+      console.error("Error in uploadDocument controller:", error);
+      res.status(500).json({ message: "Server error" });
     }
-  })
-}
+  });
+};
 
 // Delete document
 const deleteDocument = async (req, res) => {

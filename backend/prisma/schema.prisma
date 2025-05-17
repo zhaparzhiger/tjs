@@ -86,6 +86,7 @@ model Family {
   supportMeasures SupportMeasure[]
   documents       Document[]
   history         FamilyHistory[]
+  HistoryRecord   HistoryRecord[]
 }
 
 model FamilyMember {
@@ -135,6 +136,7 @@ model FamilyMember {
   family          Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
   supportMeasures SupportMeasure[]
   documents       Document[]
+  HistoryRecord   HistoryRecord[]
 }
 
 model SupportMeasure {
@@ -142,11 +144,12 @@ model SupportMeasure {
   familyId    String    @db.ObjectId
   memberId    String?   @db.ObjectId
   type        String // financial, educational, medical, psychological, etc.
-  description String
+  description String?
+  category    String? // social, health, education, etc.
   startDate   DateTime
   endDate     DateTime?
   status      String // planned, in-progress, completed, cancelled
-  provider    String
+  provider    String?
   result      String?
   notes       String?
   createdAt   DateTime  @default(now())
@@ -217,6 +220,24 @@ model FamilyHistory {
 
   // Relations
   family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+}
+
+model HistoryRecord {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  familyId    String   @db.ObjectId
+  memberId    String?  @db.ObjectId
+  action      String
+  description String
+  date        DateTime @default(now())
+  user        String
+  details     String?
+
+  family Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member FamilyMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@index([familyId])
+  @@index([memberId])
+  @@index([date])
 }
 
 model Notification {

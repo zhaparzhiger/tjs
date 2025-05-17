@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,8 +24,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -33,13 +41,28 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { DatePicker } from "@/components/date-picker";
 import { PlusCircle, Edit, Trash2, AlertCircle, CheckCircle2, Clock, FileText, History } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { FamilyService } from "@/services/family-service";
 import type { Family, SupportMeasure } from "@/types/models";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/context/auth-context";
+
+// Utility function to format ISO date to DD.MM.YYYY without timezone shift
+const formatDate = (isoDate: string | undefined): string => {
+  if (!isoDate) return "Дата отсутствует";
+  try {
+    const date = new Date(isoDate);
+    if (isNaN(date.getTime())) return "Неверная дата";
+    // Extract year, month, day directly to avoid timezone issues
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    return `${day}.${month}.${year}`;
+  } catch {
+    return "Ошибка формата даты";
+  }
+};
 
 interface FamilySupportExtendedProps {
   family: Pick<Family, "id" | "familyName">;
@@ -58,6 +81,54 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
   const [supportMeasures, setSupportMeasures] = useState<SupportMeasure[]>([]);
   const isMobile = useIsMobile();
 
+  // Form for add modal
+  const addForm = useForm({
+    defaultValues: {
+      supportCategory: "social",
+      supportType: "",
+      status: "provided",
+      amount: "",
+      notes: "",
+      "date-picker": new Date().toISOString().split("T")[0],
+    },
+  });
+
+  // Form for edit modal
+  const editForm = useForm({
+    defaultValues: {
+      supportCategory: "",
+      supportType: "",
+      status: "",
+      amount: "",
+      notes: "",
+      "date-picker": "",
+    },
+  });
+
+  // Reset edit form when editingMeasure changes
+  useEffect(() => {
+    if (editingMeasure && isEditSupportOpen) {
+      console.log("Editing measure:", editingMeasure);
+      const statusMap: { [key: string]: string } = {
+        Оказано: "provided",
+        "В процессе": "in-progress",
+        Отказано: "rejected",
+      };
+      const dateStr = editingMeasure.date
+        ? new Date(editingMeasure.date).toISOString().split("T")[0]
+        : "";
+      editForm.reset({
+        supportCategory: editingMeasure.category || "social",
+        supportType: editingMeasure.type || "",
+        status: statusMap[editingMeasure.status] || "provided",
+        amount: editingMeasure.amount || "",
+        notes: editingMeasure.notes || "",
+        "date-picker": dateStr,
+      });
+      console.log("Edit form reset with values:", editForm.getValues());
+    }
+  }, [editingMeasure, isEditSupportOpen, editForm]);
+
   useEffect(() => {
     if (!family.id) {
       toast({
@@ -73,6 +144,10 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
         console.log("Fetching support measures for familyId:", family.id);
         const data = await FamilyService.getFamilySupport(family.id);
         console.log("Fetched support measures:", data);
+        // Log raw and formatted dates
+        data.forEach((measure: SupportMeasure, index: number) => {
+          console.log(`Measure ${index + 1} - ID: ${measure.id}, Raw Date: ${measure.date}, Formatted: ${formatDate(measure.date)}`);
+        });
         setSupportMeasures(data);
       } catch (error: any) {
         console.error("Fetch error:", error);
@@ -86,19 +161,11 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
     fetchSupportMeasures();
   }, [family.id, toast]);
 
-  const handleAddSupport = async (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("handleAddSupport triggered");
-    const form = e.target as HTMLFormElement;
-    const category = (form.querySelector("#supportCategory") as HTMLSelectElement)?.value;
-    const type = (form.querySelector("#supportType") as HTMLSelectElement)?.value;
-    const amount = (form.querySelector("#amount") as HTMLInputElement)?.value;
-    const status = (form.querySelector("#status") as HTMLSelectElement)?.value;
-    const notes = (form.querySelector("#notes") as HTMLTextAreaElement)?.value || "";
-    const date = (form.querySelector("#date-picker") as HTMLInputElement)?.value || new Date().toISOString();
+  const handleAddSupport = async (data: any) => {
+    console.log("handleAddSupport triggered with data:", data);
 
-    if (!category || !type || !status) {
-      console.error("Missing required fields:", { category, type, status });
+    if (!data.supportCategory || !data.supportType || !data.status) {
+      console.error("Missing required fields:", data);
       toast({
         title: "Ошибка",
         description: "Заполните все обязательные поля (категория, тип, статус)",
@@ -109,12 +176,19 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
 
     const newMeasure: Omit<SupportMeasure, "id" | "createdAt"> = {
       familyId: family.id,
-      category,
-      type,
-      amount: amount || "0",
-      date,
-      status: status === "provided" ? "Оказано" : status === "in-progress" ? "В процессе" : "Отказано",
-      notes,
+      category: data.supportCategory,
+      type: data.supportType,
+      amount: data.amount || "0",
+      date: data["date-picker"]
+        ? new Date(data["date-picker"]).toISOString()
+        : new Date().toISOString(),
+      status:
+        data.status === "provided"
+          ? "Оказано"
+          : data.status === "in-progress"
+          ? "В процессе"
+          : "Отказано",
+      notes: data.notes || "No description provided",
       createdBy: user?.fullName || user?.username || "System",
     };
 
@@ -124,6 +198,7 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
       console.log("Created measure:", createdMeasure);
       setSupportMeasures([...supportMeasures, createdMeasure]);
       setIsAddSupportOpen(false);
+      addForm.reset();
       toast({
         title: "Мера поддержки добавлена",
         description: "Новая мера поддержки успешно добавлена",
@@ -138,21 +213,12 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
     }
   };
 
-  const handleEditSupport = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleEditSupport = async (data: any) => {
     if (!editingMeasure) return;
+    console.log("handleEditSupport triggered with data:", data);
 
-    console.log("handleEditSupport triggered for measure:", editingMeasure.id);
-    const form = e.target as HTMLFormElement;
-    const category = (form.querySelector("#supportCategory") as HTMLSelectElement)?.value;
-    const type = (form.querySelector("#supportType") as HTMLSelectElement)?.value;
-    const amount = (form.querySelector("#amount") as HTMLInputElement)?.value;
-    const status = (form.querySelector("#status") as HTMLSelectElement)?.value;
-    const notes = (form.querySelector("#notes") as HTMLTextAreaElement)?.value || "";
-    const date = (form.querySelector("#date-picker") as HTMLInputElement)?.value || new Date().toISOString();
-
-    if (!category || !type || !status) {
-      console.error("Missing required fields:", { category, type, status });
+    if (!data.supportCategory || !data.supportType || !data.status) {
+      console.error("Missing required fields:", data);
       toast({
         title: "Ошибка",
         description: "Заполните все обязательные поля (категория, тип, статус)",
@@ -163,12 +229,19 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
 
     const updatedMeasure: SupportMeasure = {
       ...editingMeasure,
-      category,
-      type,
-      amount: amount || "0",
-      date,
-      status: status === "provided" ? "Оказано" : status === "in-progress" ? "В процессе" : "Отказано",
-      notes,
+      category: data.supportCategory,
+      type: data.supportType,
+      amount: data.amount || "0",
+      date: data["date-picker"]
+        ? new Date(data["date-picker"]).toISOString()
+        : editingMeasure.date,
+      status:
+        data.status === "provided"
+          ? "Оказано"
+          : data.status === "in-progress"
+          ? "В процессе"
+          : "Отказано",
+      notes: data.notes || "No description provided",
     };
 
     try {
@@ -176,10 +249,11 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
       const updated = await FamilyService.updateSupportMeasure(updatedMeasure, user?.id || "unknown");
       console.log("Updated measure:", updated);
       setSupportMeasures(
-        supportMeasures.map((m) => (m.id === updatedMeasure.id ? updated : m)),
+        supportMeasures.map((m) => (m.id === updatedMeasure.id ? updated : m))
       );
       setIsEditSupportOpen(false);
       setEditingMeasure(null);
+      editForm.reset();
       toast({
         title: "Мера поддержки обновлена",
         description: "Мера поддержки успешно обновлена",
@@ -248,6 +322,9 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
   const canEditLegal = ["admin", "district", "police"].includes(role);
   const canEditCharity = ["admin", "district", "social"].includes(role);
 
+  const filteredSupport = (category: string) =>
+    supportMeasures.filter((measure) => measure.category.toLowerCase() === category);
+
   const renderSupportTable = (supports: SupportMeasure[], canEdit: boolean) => {
     if (supports.length === 0) {
       return (
@@ -275,39 +352,42 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
               </TableRow>
             </TableHeader>
             <TableBody>
-              {supports.map((support) => (
-                <TableRow key={support.id}>
-                  <TableCell className="font-medium">{support.type}</TableCell>
-                  <TableCell>{support.amount}</TableCell>
-                  <TableCell>{support.date}</TableCell>
-                  <TableCell>{getStatusBadge(support.status)}</TableCell>
-                  <TableCell>
-                    <div className="flex space-x-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled={!canEdit}
-                        onClick={() => {
-                          console.log("Edit button clicked for measure:", support.id);
-                          setEditingMeasure(support);
-                          setSupportType(support.category);
-                          setIsEditSupportOpen(true);
-                        }}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled={!canEdit}
-                        onClick={() => handleDeleteMeasure(support.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {supports.map((support) => {
+                console.log(`Rendering measure ID: ${support.id}, Raw Date: ${support.date}, Formatted: ${formatDate(support.date)}`);
+                return (
+                  <TableRow key={support.id}>
+                    <TableCell className="font-medium">{support.type}</TableCell>
+                    <TableCell>{support.amount}</TableCell>
+                    <TableCell>{formatDate(support.date)}</TableCell>
+                    <TableCell>{getStatusBadge(support.status)}</TableCell>
+                    <TableCell>
+                      <div className="flex space-x-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={!canEdit}
+                          onClick={() => {
+                            console.log("Edit button clicked for measure:", support.id, "Raw Date:", support.date, "Formatted:", formatDate(support.date));
+                            setEditingMeasure(support);
+                            setSupportType(support.category);
+                            setIsEditSupportOpen(true);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={!canEdit}
+                          onClick={() => handleDeleteMeasure(support.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
@@ -325,7 +405,7 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
               </div>
               <div className="mobile-table-card-row">
                 <div className="mobile-table-card-label">Дата:</div>
-                <div className="mobile-table-card-value">{support.date}</div>
+                <div className="mobile-table-card-value">{formatDate(support.date)}</div>
               </div>
               {support.notes && (
                 <div className="mobile-table-card-row">
@@ -339,7 +419,7 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                   size="sm"
                   disabled={!canEdit}
                   onClick={() => {
-                    console.log("Edit button clicked for measure:", support.id);
+                    console.log("Edit button clicked for measure:", support.id, "Raw Date:", support.date, "Formatted:", formatDate(support.date));
                     setEditingMeasure(support);
                     setSupportType(support.category);
                     setIsEditSupportOpen(true);
@@ -417,84 +497,148 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
     ],
   };
 
-  const filteredSupport = (category: string) =>
-    supportMeasures.filter((measure) => measure.category.toLowerCase() === category);
+  const renderSupportForm = (isEdit: boolean, measure?: SupportMeasure) => {
+    const form = isEdit ? editForm : addForm;
+    const onSubmit = isEdit ? handleEditSupport : handleAddSupport;
 
-  const renderSupportForm = (isEdit: boolean, measure?: SupportMeasure) => (
-    <form onSubmit={isEdit ? handleEditSupport : handleAddSupport}>
-      <div className="grid gap-4 py-4">
-        <div className="grid gap-2">
-          <Label htmlFor="supportCategory">Категория</Label>
-          <Select value={supportType} onValueChange={setSupportType} name="supportCategory">
-            <SelectTrigger id="supportCategory">
-              <SelectValue placeholder="Выберите категорию" />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(categoryMap).map(([key, label]) => (
-                <SelectItem key={key} value={key}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="supportType">Тип поддержки</Label>
-          <Select defaultValue={measure?.type} name="supportType">
-            <SelectTrigger id="supportType">
-              <SelectValue placeholder="Выберите тип" />
-            </SelectTrigger>
-            <SelectContent>
-              {typeOptions[supportType].map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="amount">Сумма (тыс. тенге)</Label>
-          <Input
-            id="amount"
-            name="amount"
-            type="text"
-            defaultValue={measure?.amount}
-            placeholder="0"
+    return (
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
+          <FormField
+            control={form.control}
+            name="supportCategory"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel htmlFor="supportCategory">Категория</FormLabel>
+                <FormControl>
+                  <Select
+                    value={field.value}
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      setSupportType(value);
+                    }}
+                  >
+                    <SelectTrigger id="supportCategory">
+                      <SelectValue placeholder="Выберите категорию" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(categoryMap).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </div>
-
-        <div className="grid gap-2">
-          <Label>Дата оказания</Label>
-          <DatePicker id="date-picker" name="date-picker" defaultValue={measure?.date} />
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="status">Статус</Label>
-          <Select defaultValue={measure?.status.toLowerCase() || "provided"} name="status">
-            <SelectTrigger id="status">
-              <SelectValue placeholder="Выберите статус" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="provided">Оказано</SelectItem>
-              <SelectItem value="in-progress">В процессе</SelectItem>
-              <SelectItem value="rejected">Отказано</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="notes">Примечания</Label>
-          <Textarea id="notes" name="notes" defaultValue={measure?.notes} />
-        </div>
-      </div>
-      <DialogFooter>
-        <Button type="submit">{isEdit ? "Сохранить" : "Добавить"}</Button>
-      </DialogFooter>
-    </form>
-  );
+          <FormField
+            control={form.control}
+            name="supportType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel htmlFor="supportType">Тип поддержки</FormLabel>
+                <FormControl>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="supportType">
+                      <SelectValue placeholder="Выберите тип" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {typeOptions[supportType].map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="amount"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel htmlFor="amount">Сумма (тыс. тенге)</FormLabel>
+                <FormControl>
+                  <Input
+                    id="amount"
+                    type="text"
+                    placeholder="0"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="date-picker"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel htmlFor="date-picker">Дата оказания</FormLabel>
+                <FormControl>
+                  <Input
+                    id="date-picker"
+                    type="date"
+                    value={field.value}
+                    onChange={(e) => {
+                      console.log("Date input onChange:", e.target.value);
+                      field.onChange(e.target.value);
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel htmlFor="status">Статус</FormLabel>
+                <FormControl>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="status">
+                      <SelectValue placeholder="Выберите статус" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="provided">Оказано</SelectItem>
+                      <SelectItem value="in-progress">В процессе</SelectItem>
+                      <SelectItem value="rejected">Отказано</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="notes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel htmlFor="notes">Примечания</FormLabel>
+                <FormControl>
+                  <Textarea id="notes" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <DialogFooter>
+            <Button type="submit">{isEdit ? "Сохранить" : "Добавить"}</Button>
+          </DialogFooter>
+        </form>
+      </Form>
+    );
+  };
 
   return (
     <Card>
@@ -554,7 +698,7 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                     <div className="support-card-content">
                       <div className="support-card-item">
                         <span className="support-card-label">Дата:</span>
-                        <span className="support-card-value">{measure.date}</span>
+                        <span className="support-card-value">{formatDate(measure.date)}</span>
                       </div>
                       <div className="support-card-item">
                         <span className="support-card-label">Статус:</span>
@@ -571,7 +715,7 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                         size="sm"
                         disabled={!canEditSocial}
                         onClick={() => {
-                          console.log("Edit button clicked for measure:", measure.id);
+                          console.log("Edit button clicked for measure:", measure.id, "Raw Date:", measure.date, "Formatted:", formatDate(measure.date));
                           setEditingMeasure(measure);
                           setSupportType(measure.category);
                           setIsEditSupportOpen(true);
@@ -605,7 +749,7 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                     <div className="support-card-content">
                       <div className="support-card-item">
                         <span className="support-card-label">Дата:</span>
-                        <span className="support-card-value">{measure.date}</span>
+                        <span className="support-card-value">{formatDate(measure.date)}</span>
                       </div>
                       <div className="support-card-item">
                         <span className="support-card-label">Статус:</span>
@@ -622,7 +766,7 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                         size="sm"
                         disabled={!canEditEducation}
                         onClick={() => {
-                          console.log("Edit button clicked for measure:", measure.id);
+                          console.log("Edit button clicked for measure:", measure.id, "Raw Date:", measure.date, "Formatted:", formatDate(measure.date));
                           setEditingMeasure(measure);
                           setSupportType(measure.category);
                           setIsEditSupportOpen(true);
@@ -656,7 +800,7 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                     <div className="support-card-content">
                       <div className="support-card-item">
                         <span className="support-card-label">Дата:</span>
-                        <span className="support-card-value">{measure.date}</span>
+                        <span className="support-card-value">{formatDate(measure.date)}</span>
                       </div>
                       <div className="support-card-item">
                         <span className="support-card-label">Статус:</span>
@@ -673,7 +817,7 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                         size="sm"
                         disabled={!canEditHealth}
                         onClick={() => {
-                          console.log("Edit button clicked for measure:", measure.id);
+                          console.log("Edit button clicked for measure:", measure.id, "Raw Date:", measure.date, "Formatted:", formatDate(measure.date));
                           setEditingMeasure(measure);
                           setSupportType(measure.category);
                           setIsEditSupportOpen(true);
@@ -707,7 +851,7 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                     <div className="support-card-content">
                       <div className="support-card-item">
                         <span className="support-card-label">Дата:</span>
-                        <span className="support-card-value">{measure.date}</span>
+                        <span className="support-card-value">{formatDate(measure.date)}</span>
                       </div>
                       <div className="support-card-item">
                         <span className="support-card-label">Статус:</span>
@@ -724,7 +868,7 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                         size="sm"
                         disabled={!canEditPolice}
                         onClick={() => {
-                          console.log("Edit button clicked for measure:", measure.id);
+                          console.log("Edit button clicked for measure:", measure.id, "Raw Date:", measure.date, "Formatted:", formatDate(measure.date));
                           setEditingMeasure(measure);
                           setSupportType(measure.category);
                           setIsEditSupportOpen(true);
@@ -758,7 +902,7 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                     <div className="support-card-content">
                       <div className="support-card-item">
                         <span className="support-card-label">Дата:</span>
-                        <span className="support-card-value">{measure.date}</span>
+                        <span className="support-card-value">{formatDate(measure.date)}</span>
                       </div>
                       <div className="support-card-item">
                         <span className="support-card-label">Статус:</span>
@@ -775,7 +919,7 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                         size="sm"
                         disabled={!canEditLegal}
                         onClick={() => {
-                          console.log("Edit button clicked for measure:", measure.id);
+                          console.log("Edit button clicked for measure:", measure.id, "Raw Date:", measure.date, "Formatted:", formatDate(measure.date));
                           setEditingMeasure(measure);
                           setSupportType(measure.category);
                           setIsEditSupportOpen(true);
@@ -809,7 +953,7 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                     <div className="support-card-content">
                       <div className="support-card-item">
                         <span className="support-card-label">Дата:</span>
-                        <span className="support-card-value">{measure.date}</span>
+                        <span className="support-card-value">{formatDate(measure.date)}</span>
                       </div>
                       <div className="support-card-item">
                         <span className="support-card-label">Статус:</span>
@@ -826,7 +970,7 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                         size="sm"
                         disabled={!canEditCharity}
                         onClick={() => {
-                          console.log("Edit button clicked for measure:", measure.id);
+                          console.log("Edit button clicked for measure:", measure.id, "Raw Date:", measure.date, "Formatted:", formatDate(measure.date));
                           setEditingMeasure(measure);
                           setSupportType(measure.category);
                           setIsEditSupportOpen(true);
@@ -875,7 +1019,7 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-medium">{item.date}</p>
+                          <p className="text-sm font-medium">{formatDate(item.date)}</p>
                           <p className="text-xs text-gray-500">Автор: {item.createdBy}</p>
                         </div>
                       </div>

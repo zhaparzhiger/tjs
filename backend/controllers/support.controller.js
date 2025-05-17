@@ -118,6 +118,7 @@ const getSupportMeasureById = async (req, res) => {
 // Create a new support measure
 const createSupportMeasure = async (req, res) => {
   try {
+    console.log("createSupportMeasure received:", req.body);
     const {
       familyId,
       memberId,
@@ -140,47 +141,61 @@ const createSupportMeasure = async (req, res) => {
       followUpDate,
       evaluationDate,
       effectiveness,
-    } = req.body
+      createdById,
+    } = req.body;
 
-    // Check if family exists
+    // Validate family existence
     const family = await prisma.family.findUnique({
       where: { id: familyId },
-    })
+    });
 
     if (!family) {
-      return res.status(404).json({ message: "Family not found" })
+      console.log(`Family not found: ${familyId}`);
+      return res.status(404).json({ message: "Family not found" });
     }
 
-    // Check if user has access to this family
+    // Check user access based on familyFilter (if applicable)
     if (req.familyFilter) {
-      const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => family[key] === value)
+      const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => family[key] === value);
       if (!hasAccess) {
-        return res.status(403).json({ message: "You do not have access to this family" })
+        console.log(`Access denied for family: ${familyId}`);
+        return res.status(403).json({ message: "You do not have access to this family" });
       }
     }
 
-    // Check if member exists if memberId is provided
+    // Validate member existence (if provided)
     if (memberId) {
       const member = await prisma.familyMember.findUnique({
         where: { id: memberId },
-      })
+      });
 
       if (!member) {
-        return res.status(404).json({ message: "Family member not found" })
+        console.log(`Member not found: ${memberId}`);
+        return res.status(404).json({ message: "Family member not found" });
       }
 
       if (member.familyId !== familyId) {
-        return res.status(400).json({ message: "Family member does not belong to this family" })
+        console.log(`Member ${memberId} does not belong to family ${familyId}`);
+        return res.status(400).json({ message: "Family member does not belong to this family" });
       }
     }
 
-    // Create new support measure
+    // Validate description
+    if (!description) {
+      console.log("Description missing");
+      return res.status(400).json({ message: "Description is required" });
+    }
+
+    // Create the support measure
     const newSupportMeasure = await prisma.supportMeasure.create({
       data: {
-        familyId,
+        family: {
+          connect: { id: familyId },
+        },
         memberId,
         type,
         description,
+        category: req.body.category, // Ensure category is included
         startDate: new Date(startDate),
         endDate: endDate ? new Date(endDate) : null,
         status,
@@ -188,7 +203,7 @@ const createSupportMeasure = async (req, res) => {
         result,
         notes,
         priority,
-        cost,
+        cost: cost ? parseFloat(cost) : null,
         fundingSource,
         contactPerson,
         contactPhone,
@@ -199,58 +214,63 @@ const createSupportMeasure = async (req, res) => {
         evaluationDate: evaluationDate ? new Date(evaluationDate) : null,
         effectiveness,
         createdBy: {
-          connect: { id: req.user.id },
+          connect: { id: createdById || req.user.id },
         },
       },
       include: {
         createdBy: {
-          select: {
-            id: true,
-            username: true,
-            fullName: true,
-          },
+          select: { id: true, username: true, fullName: true },
         },
         member: true,
       },
-    })
+    });
 
-    // Update family history
+    console.log("Created support measure:", newSupportMeasure);
+
+    // Create family history entry
     await prisma.familyHistory.create({
       data: {
         familyId,
         action: "support_added",
         description: `New support measure added: ${type}`,
         userId: req.user.id,
+        changedFields: ["supportMeasure"],
+        newValues: { type, status, cost },
       },
-    })
+    });
 
-    // Update family lastUpdate
+    // Update family updatedBy
     await prisma.family.update({
       where: { id: familyId },
       data: {
         updatedBy: {
           connect: { id: req.user.id },
         },
+        lastUpdate: new Date(),
       },
-    })
+    });
 
     res.status(201).json({
       message: "Support measure created successfully",
       supportMeasure: newSupportMeasure,
-    })
+    });
   } catch (error) {
-    console.error("Error in createSupportMeasure controller:", error)
-    res.status(500).json({ message: "Server error" })
+    console.error("Error in createSupportMeasure controller:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
-}
+};
 
 // Update support measure
 const updateSupportMeasure = async (req, res) => {
   try {
-    const { id } = req.params
+    console.log("updateSupportMeasure received:", req.body, "ID:", req.params.id);
+    const { id } = req.params;
     const {
+      familyId,
+      memberId,
       type,
       description,
+      category,
       startDate,
       endDate,
       status,
@@ -268,42 +288,72 @@ const updateSupportMeasure = async (req, res) => {
       followUpDate,
       evaluationDate,
       effectiveness,
-    } = req.body
+      createdById,
+    } = req.body;
 
-    // Check if support measure exists
-    const existingSupportMeasure = await prisma.supportMeasure.findUnique({
+    // Validate support measure existence
+    const existingMeasure = await prisma.supportMeasure.findUnique({
       where: { id },
-      include: { family: true },
-    })
+    });
 
-    if (!existingSupportMeasure) {
-      return res.status(404).json({ message: "Support measure not found" })
+    if (!existingMeasure) {
+      console.log(`Support measure not found: ${id}`);
+      return res.status(404).json({ message: "Support measure not found" });
     }
 
-    // Check if user has access to this family
+    // Validate family existence
+    const family = await prisma.family.findUnique({
+      where: { id: familyId },
+    });
+
+    if (!family) {
+      console.log(`Family not found: ${familyId}`);
+      return res.status(404).json({ message: "Family not found" });
+    }
+
+    // Check user access
     if (req.familyFilter) {
-      const hasAccess = Object.entries(req.familyFilter).every(
-        ([key, value]) => existingSupportMeasure.family[key] === value,
-      )
+      const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => family[key] === value);
       if (!hasAccess) {
-        return res.status(403).json({ message: "You do not have access to this support measure" })
+        console.log(`Access denied for family: ${familyId}`);
+        return res.status(403).json({ message: "You do not have access to this family" });
       }
+    }
+
+    // Validate member (if provided)
+    if (memberId) {
+      const member = await prisma.familyMember.findUnique({
+        where: { id: memberId },
+      });
+      if (!member || member.familyId !== familyId) {
+        console.log(`Invalid member: ${memberId}`);
+        return res.status(400).json({ message: "Invalid family member" });
+      }
+    }
+
+    // Validate description
+    if (!description) {
+      console.log("Description missing");
+      return res.status(400).json({ message: "Description is required" });
     }
 
     // Update support measure
     const updatedSupportMeasure = await prisma.supportMeasure.update({
       where: { id },
       data: {
+        family: { connect: { id: familyId } },
+        memberId,
         type,
         description,
-        startDate: startDate ? new Date(startDate) : undefined,
+        category,
+        startDate: startDate ? new Date(startDate) : existingMeasure.startDate,
         endDate: endDate ? new Date(endDate) : null,
         status,
         provider,
         result,
         notes,
         priority,
-        cost,
+        cost: cost ? parseFloat(cost) : null,
         fundingSource,
         contactPerson,
         contactPhone,
@@ -313,48 +363,48 @@ const updateSupportMeasure = async (req, res) => {
         followUpDate: followUpDate ? new Date(followUpDate) : null,
         evaluationDate: evaluationDate ? new Date(evaluationDate) : null,
         effectiveness,
+        createdBy: { connect: { id: createdById || req.user.id } },
       },
       include: {
-        createdBy: {
-          select: {
-            id: true,
-            username: true,
-            fullName: true,
-          },
-        },
+        createdBy: { select: { id: true, username: true, fullName: true } },
         member: true,
       },
-    })
+    });
 
-    // Update family history
+    console.log("Updated support measure:", updatedSupportMeasure);
+
+    // Create family history entry
     await prisma.familyHistory.create({
       data: {
-        familyId: existingSupportMeasure.familyId,
+        familyId,
         action: "support_updated",
         description: `Support measure updated: ${type}`,
         userId: req.user.id,
+        changedFields: ["supportMeasure"],
+        newValues: { type, status, cost },
       },
-    })
+    });
 
-    // Update family lastUpdate
+    // Update family updatedBy
     await prisma.family.update({
-      where: { id: existingSupportMeasure.familyId },
+      where: { id: familyId },
       data: {
-        updatedBy: {
-          connect: { id: req.user.id },
-        },
+        updatedBy: { connect: { id: req.user.id } },
+        lastUpdate: new Date(),
       },
-    })
+    });
 
     res.status(200).json({
       message: "Support measure updated successfully",
       supportMeasure: updatedSupportMeasure,
-    })
+    });
   } catch (error) {
-    console.error("Error in updateSupportMeasure controller:", error)
-    res.status(500).json({ message: "Server error" })
+    console.error("Error in updateSupportMeasure controller:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
-}
+};
+
+module.exports = { createSupportMeasure, updateSupportMeasure };
 
 // Delete support measure
 const deleteSupportMeasure = async (req, res) => {

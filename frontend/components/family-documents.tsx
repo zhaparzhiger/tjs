@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -19,160 +18,288 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DatePicker } from "@/components/date-picker"
-import { FileUp, Download, Eye, Trash2 } from "lucide-react"
+import { FileUp, Download, Eye, Trash2, FileText } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { simulateFileUpload, exportToPdf } from "@/lib/export-utils"
-import { getFromStorage, saveToStorage, STORAGE_KEYS } from "@/lib/storage-utils"
-import type { Document } from "@/types/models"
+import axios from "axios"
+
+interface Document {
+  id: string
+  familyId: string
+  title: string
+  type: string
+  uploadDate: string
+  uploadedBy: { fullName: string }
+  fileUrl: string
+  mimeType?: string
+  fileSize?: number
+}
 
 interface FamilyDocumentsProps {
-  family: any
+  family: { id: string }
   role: "admin" | "school" | "social" | "police" | "health" | "district" | "mobile"
 }
 
 export function FamilyDocuments({ family, role }: FamilyDocumentsProps) {
   const { toast } = useToast()
   const [isAddDocumentOpen, setIsAddDocumentOpen] = useState(false)
-  const [documents, setDocuments] = useState<Document[]>(() => {
-    // Получаем документы из localStorage или используем демо-данные
-    const storedDocs = getFromStorage<Document[]>(STORAGE_KEYS.FAMILY_DOCUMENTS, [])
-    const familyDocs = storedDocs.filter((doc) => doc.familyId === family.id)
+  const [isViewDocumentOpen, setIsViewDocumentOpen] = useState(false)
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
+  const [documents, setDocuments] = useState<Document[]>([])
+  const [selectedDate, setSelectedDate] = useState<string>("")
 
-    return familyDocs.length > 0
-      ? familyDocs
-      : [
-          {
-            id: 1,
-            familyId: family.id,
-            name: "Акт обследования",
-            type: "Акт",
-            date: "15.03.2025",
-            author: "Иванов П.С.",
-          },
-          {
-            id: 2,
-            familyId: family.id,
-            name: "Справка о доходах",
-            type: "Справка",
-            date: "10.02.2025",
-            author: "Петрова А.В.",
-          },
-          {
-            id: 3,
-            familyId: family.id,
-            name: "Заявление на АСП",
-            type: "Заявление",
-            date: "05.01.2025",
-            author: "Сидоров К.Н.",
-          },
-          {
-            id: 4,
-            familyId: family.id,
-            name: "Свидетельство о рождении",
-            type: "Документ",
-            date: "20.12.2024",
-            author: "Ким Е.С.",
-          },
-        ]
-  })
+  // Map frontend type values to backend display values
+  const typeMap: { [key: string]: string } = {
+    act: "Акт",
+    certificate: "Справка",
+    application: "Заявление",
+    document: "Документ",
+    other: "Другое",
+  }
 
-  const handleAddDocument = (e: React.FormEvent) => {
+  // Fetch documents on mount
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      try {
+        const token = localStorage.getItem("auth_token")
+        const response = await axios.get(`http://localhost:5555/api/documents/family/${family.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        console.log("Fetched documents:", response.data)
+        setDocuments(response.data)
+      } catch (error) {
+        console.error("Error fetching documents:", error)
+        toast({
+          title: "Ошибка",
+          description: "Не удалось загрузить документы",
+          variant: "destructive",
+        })
+      }
+    }
+    fetchDocuments()
+  }, [family.id, toast])
+
+  const handleAddDocument = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    // Получаем данные из формы
     const form = e.target as HTMLFormElement
-    const documentName = (form.querySelector("#documentName") as HTMLInputElement).value
-    const documentType = (form.querySelector("#documentType") as HTMLSelectElement).value
-    const date = new Date().toLocaleDateString("ru-RU")
+    const formData = new FormData(form)
 
-    // Создаем новый документ
-    const newDocument: Document = {
-      id: Math.max(0, ...documents.map((d) => d.id)) + 1,
-      familyId: family.id,
-      name: documentName,
-      type:
-        documentType === "act"
-          ? "Акт"
-          : documentType === "certificate"
-            ? "Справка"
-            : documentType === "application"
-              ? "Заявление"
-              : documentType === "document"
-                ? "Документ"
-                : "Другое",
-      date,
-      author: "Текущий пользователь",
+    // Append additional fields
+    formData.append("familyId", family.id)
+    if (selectedDate) {
+      formData.append("uploadDate", selectedDate)
     }
 
-    // Имитация загрузки файла
-    simulateFileUpload((file) => {
-      newDocument.fileUrl = URL.createObjectURL(file)
-      newDocument.fileType = file.type
-      newDocument.fileSize = file.size
+    // Map type to display value
+    const type = formData.get("type") as string
+    if (type && typeMap[type]) {
+      formData.set("type", typeMap[type])
+    }
 
-      // Обновляем состояние и localStorage
-      const updatedDocs = [...documents, newDocument]
-      setDocuments(updatedDocs)
-
-      // Получаем все документы и добавляем новый
-      const allDocs = getFromStorage<Document[]>(STORAGE_KEYS.FAMILY_DOCUMENTS, [])
-      const docsWithoutFamily = allDocs.filter((d) => d.familyId !== family.id)
-      saveToStorage(STORAGE_KEYS.FAMILY_DOCUMENTS, [...docsWithoutFamily, ...updatedDocs])
-
+    try {
+      const token = localStorage.getItem("auth_token")
+      const response = await axios.post("http://localhost:5555/api/documents/upload", formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      })
+      console.log("Uploaded document:", response.data.document)
+      setDocuments([...documents, response.data.document])
       setIsAddDocumentOpen(false)
+      setSelectedDate("")
       toast({
         title: "Документ добавлен",
         description: "Новый документ успешно добавлен",
       })
-    })
-  }
-
-  const handleDeleteDocument = (id: number) => {
-    // Удаляем документ из состояния
-    const updatedDocs = documents.filter((doc) => doc.id !== id)
-    setDocuments(updatedDocs)
-
-    // Обновляем localStorage
-    const allDocs = getFromStorage<Document[]>(STORAGE_KEYS.FAMILY_DOCUMENTS, [])
-    const docsWithoutDeleted = allDocs.filter((d) => d.id !== id)
-    saveToStorage(STORAGE_KEYS.FAMILY_DOCUMENTS, docsWithoutDeleted)
-
-    toast({
-      title: "Документ удален",
-      description: "Документ успешно удален из списка",
-    })
-  }
-
-  const handleViewDocument = (document: Document) => {
-    if (document.fileUrl) {
-      // Если есть URL файла, открываем его в новом окне
-      window.open(document.fileUrl, "_blank")
-    } else {
-      // Иначе показываем уведомление
+    } catch (error) {
+      console.error("Error uploading document:", error)
       toast({
-        title: "Просмотр документа",
-        description: "Документ недоступен для просмотра",
+        title: "Ошибка",
+        description: "Не удалось добавить документ",
+        variant: "destructive",
       })
     }
   }
 
-  const handleDownloadDocument = (document: Document) => {
-    // Имитация скачивания PDF
-    exportToPdf(
-      {
-        name: document.name,
-        type: document.type,
-        date: document.date,
-        author: document.author,
-        content: "Содержимое документа...",
-      },
-      document.name,
-    )
+  const handleDeleteDocument = async (id: string) => {
+    try {
+      const token = localStorage.getItem("auth_token")
+      await axios.delete(`http://localhost:5555/api/documents/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      setDocuments(documents.filter((doc) => doc.id !== id))
+      toast({
+        title: "Документ удален",
+        description: "Документ успешно удален из списка",
+      })
+    } catch (error) {
+      console.error("Error deleting document:", error)
+      toast({
+        title: "Ошибка",
+        description: "Не удалось удалить документ",
+        variant: "destructive",
+      })
+    }
+  }
 
-    toast({
-      title: "Скачивание документа",
-      description: "Документ скачивается",
-    })
+  const handleViewDocument = (doc: Document) => {
+    console.log("Viewing document:", { fileUrl: doc.fileUrl, mimeType: doc.mimeType })
+    let url = doc.fileUrl
+    // Normalize URLs (handle relative, case-insensitive 'uploads')
+    if (url && !url.startsWith("http")) {
+      url = `http://localhost:5555${url.startsWith("/") ? url : "/uploads/" + url}`
+      url = url.replace(/\/Uploads\//i, "/uploads/")
+    }
+    console.log("Normalized URL:", url)
+    setSelectedDocument({ ...doc, fileUrl: url })
+    setIsViewDocumentOpen(true)
+  }
+
+  const renderDocumentPreview = (doc: Document) => {
+    const mimeType = doc.mimeType?.toLowerCase()
+    const url = doc.fileUrl
+    const fileSize = doc.fileSize ? `${(doc.fileSize / 1024).toFixed(2)} KB` : "Неизвестно"
+
+    // Handle image previews
+    if (mimeType?.startsWith("image/")) {
+      return (
+        <div className="flex flex-col items-center">
+          <img
+            src={url || "/placeholder.svg"}
+            alt={doc.title}
+            className="max-w-full h-auto object-contain"
+            style={{ maxHeight: "70vh" }}
+            onError={() =>
+              toast({
+                title: "Ошибка",
+                description: "Не удалось загрузить изображение",
+                variant: "destructive",
+              })
+            }
+          />
+          <Button onClick={() => handleDownloadDocument(doc)} className="mt-4" variant="outline">
+            <Download className="mr-2 h-4 w-4" />
+            Скачать изображение
+          </Button>
+        </div>
+      )
+    }
+
+    // Handle PDF previews with iframe for better compatibility
+    if (mimeType === "application/pdf") {
+      return (
+        <div className="flex flex-col items-center">
+          <iframe
+            src={`${url}#toolbar=0&navpanes=0&scrollbar=1`}
+            className="w-full border-0"
+            style={{ height: "70vh" }}
+            title={doc.title}
+            onError={() =>
+              toast({
+                title: "Ошибка",
+                description: "Не удалось загрузить PDF",
+                variant: "destructive",
+              })
+            }
+          />
+          <Button onClick={() => handleDownloadDocument(doc)} className="mt-4" variant="outline">
+            <Download className="mr-2 h-4 w-4" />
+            Скачать PDF
+          </Button>
+        </div>
+      )
+    }
+
+    // Handle Office documents and other file types
+    const getFileIcon = () => {
+      if (mimeType?.includes("excel") || mimeType?.includes("spreadsheet")) {
+        return <FileText className="w-16 h-16 mx-auto text-green-500" />
+      } else if (mimeType?.includes("word") || mimeType?.includes("document")) {
+        return <FileText className="w-16 h-16 mx-auto text-blue-500" />
+      } else if (mimeType === "text/plain") {
+        return <FileText className="w-16 h-16 mx-auto text-gray-500" />
+      } else {
+        return <FileText className="w-16 h-16 mx-auto text-gray-500" />
+      }
+    }
+
+    return (
+      <div className="text-center p-8">
+        {getFileIcon()}
+        <p className="mt-4 text-lg font-medium">{doc.title}</p>
+        <p className="text-muted-foreground">Тип: {mimeType || "неизвестный"}</p>
+        <p className="text-muted-foreground mb-4">Размер: {fileSize}</p>
+        <Button onClick={() => handleDownloadDocument(doc)} className="mt-2" variant="outline">
+          <Download className="mr-2 h-4 w-4" />
+          Скачать документ
+        </Button>
+      </div>
+    )
+  }
+
+  const handleDownloadDocument = (doc: Document) => {
+    let url = doc.fileUrl
+    // Normalize URLs
+    if (url && !url.startsWith("http")) {
+      url = `http://localhost:5555${url.startsWith("/") ? url : "/uploads/" + url}`
+      url = url.replace(/\/Uploads\//i, "/uploads/")
+    }
+
+    // Create a blob from the URL and download it
+    fetch(url)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Network response was not ok")
+        }
+        return response.blob()
+      })
+      .then((blob) => {
+        // Determine file extension based on mimeType
+        const extension = doc.mimeType
+          ? doc.mimeType.includes("image/png")
+            ? ".png"
+            : doc.mimeType.includes("image/jpeg")
+              ? ".jpg"
+              : doc.mimeType.includes("application/pdf")
+                ? ".pdf"
+                : doc.mimeType.includes("spreadsheetml.sheet")
+                  ? ".xlsx"
+                  : doc.mimeType.includes("ms-excel")
+                    ? ".xls"
+                    : doc.mimeType.includes("wordprocessingml.document")
+                      ? ".docx"
+                      : doc.mimeType.includes("msword")
+                        ? ".doc"
+                        : doc.mimeType.includes("text/plain")
+                          ? ".txt"
+                          : ""
+          : ""
+
+        // Create a blob URL and trigger download
+        const blobUrl = window.URL.createObjectURL(blob)
+        const link = document.createElement("a")
+        link.href = blobUrl
+        link.download = `${doc.title}${extension}`
+        document.body.appendChild(link)
+        link.click()
+
+        // Clean up
+        window.URL.revokeObjectURL(blobUrl)
+        document.body.removeChild(link)
+
+        toast({
+          title: "Скачивание документа",
+          description: `Скачивается: ${doc.title}${extension}`,
+        })
+      })
+      .catch((error) => {
+        console.error("Error downloading document:", error)
+        toast({
+          title: "Ошибка",
+          description: "Не удалось скачать документ",
+          variant: "destructive",
+        })
+      })
   }
 
   return (
@@ -194,14 +321,14 @@ export function FamilyDocuments({ family, role }: FamilyDocumentsProps) {
               <form onSubmit={handleAddDocument}>
                 <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="documentName">Название документа</Label>
-                    <Input id="documentName" required />
+                    <Label htmlFor="title">Название документа</Label>
+                    <Input id="title" name="title" required />
                   </div>
 
                   <div className="grid gap-2">
-                    <Label htmlFor="documentType">Тип документа</Label>
-                    <Select>
-                      <SelectTrigger id="documentType">
+                    <Label htmlFor="type">Тип документа</Label>
+                    <Select name="type">
+                      <SelectTrigger id="type">
                         <SelectValue placeholder="Выберите тип" />
                       </SelectTrigger>
                       <SelectContent>
@@ -216,12 +343,24 @@ export function FamilyDocuments({ family, role }: FamilyDocumentsProps) {
 
                   <div className="grid gap-2">
                     <Label>Дата документа</Label>
-                    <DatePicker />
+                    <DatePicker
+                      value={selectedDate}
+                      onChange={(value) => {
+                        console.log("DatePicker onChange:", value)
+                        const dateStr =
+                          value instanceof Date
+                            ? value.toISOString().split("T")[0]
+                            : typeof value === "string" && value
+                              ? value
+                              : ""
+                        setSelectedDate(dateStr)
+                      }}
+                    />
                   </div>
 
                   <div className="grid gap-2">
                     <Label htmlFor="file">Файл</Label>
-                    <Input id="file" type="file" />
+                    <Input id="file" name="file" type="file" required />
                   </div>
                 </div>
                 <DialogFooter>
@@ -245,10 +384,10 @@ export function FamilyDocuments({ family, role }: FamilyDocumentsProps) {
           <TableBody>
             {documents.map((document) => (
               <TableRow key={document.id}>
-                <TableCell className="font-medium">{document.name}</TableCell>
+                <TableCell className="font-medium">{document.title}</TableCell>
                 <TableCell>{document.type}</TableCell>
-                <TableCell>{document.date}</TableCell>
-                <TableCell>{document.author}</TableCell>
+                <TableCell>{new Date(document.uploadDate).toLocaleDateString("ru-RU")}</TableCell>
+                <TableCell>{document.uploadedBy.fullName}</TableCell>
                 <TableCell>
                   <div className="flex space-x-1">
                     <Button variant="ghost" size="icon" onClick={() => handleViewDocument(document)}>
@@ -266,6 +405,29 @@ export function FamilyDocuments({ family, role }: FamilyDocumentsProps) {
             ))}
           </TableBody>
         </Table>
+
+        {/* View Document Modal */}
+        <Dialog open={isViewDocumentOpen} onOpenChange={setIsViewDocumentOpen}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>{selectedDocument?.title || "Просмотр документа"}</DialogTitle>
+              <DialogDescription>
+                {selectedDocument?.type || "Документ"} от{" "}
+                {selectedDocument?.uploadDate ? new Date(selectedDocument.uploadDate).toLocaleDateString("ru-RU") : ""}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 overflow-auto max-h-[80vh]">
+              {selectedDocument ? renderDocumentPreview(selectedDocument) : <p>Документ не выбран</p>}
+            </div>
+            <DialogFooter className="flex justify-between">
+              <Button variant="outline" onClick={() => selectedDocument && handleDownloadDocument(selectedDocument)}>
+                <Download className="mr-2 h-4 w-4" />
+                Скачать
+              </Button>
+              <Button onClick={() => setIsViewDocumentOpen(false)}>Закрыть</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   )
