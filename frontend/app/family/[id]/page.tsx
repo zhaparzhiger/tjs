@@ -46,6 +46,7 @@ export default function FamilyPage({ params }: { params: Promise<{ id: string }>
         }
 
         const data = await response.json();
+          console.log("Data is", data)
         const mappedFamily: Family = {
           id: data.id,
           name: data.familyName,
@@ -53,12 +54,12 @@ export default function FamilyPage({ params }: { params: Promise<{ id: string }>
           address: data.address,
           registrationAddress: data.registrationAddress || data.address,
           status: data.status,
-          statusReason: data.statusReason || "",
+          settingReason: data.settingReason || "",
           tzhsReason: data.tzhsReason || "",
           nbReason: data.nbReason || "",
           inspectionStatus: data.inspectionStatus || "not-inspected",
           familyType: data.familyType || "full",
-          children: data._count?.members || 0,
+          children: data.children || 0,
           housingType: data.housingType || "apartment",
           employment: data.employment || "employed-official",
           workplace: data.workplace || "",
@@ -71,7 +72,16 @@ export default function FamilyPage({ params }: { params: Promise<{ id: string }>
           isActive: data.isActive !== false,
           inactiveReason: data.inactiveReason || "",
           notes: data.notes || "",
-          lastUpdate: new Date(data.lastUpdate).toLocaleDateString(),
+            region: data.region || "",
+            district: data.district || "",
+            city: data.city || "",
+                riskLevel: data.riskLevel || "",
+              riskFactors: data.riskFactors || "",
+              socialBenefits: data.socialBenefits || "",
+              contactPhone: data.contactPhone || "",
+              contactEmail: data.contactEmail || "",
+                hasInterpreterNeeded: data.hasInterpreterNeeded || false,
+            lastUpdate: new Date(data.lastUpdate).toLocaleDateString(),
         };
         setFamily(mappedFamily);
       } catch (err: any) {
@@ -92,7 +102,7 @@ export default function FamilyPage({ params }: { params: Promise<{ id: string }>
 
   const handleSave = async () => {
     if (!family) return;
-
+      
     try {
       const payload = {
         familyName: family.name,
@@ -127,6 +137,7 @@ export default function FamilyPage({ params }: { params: Promise<{ id: string }>
         },
         body: JSON.stringify(payload),
       });
+        
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -162,6 +173,8 @@ export default function FamilyPage({ params }: { params: Promise<{ id: string }>
         lastUpdate: new Date(updated.lastUpdate).toLocaleDateString(),
       };
       setFamily(updatedFamily);
+      
+        
       toast({
         title: "Изменения сохранены",
         description: "Данные семьи успешно обновлены",

@@ -243,6 +243,9 @@ module.exports = { createFamilyMember, /* ... other exports */ };
 const updateFamilyMember = async (req, res) => {
   try {
     const { id } = req.params
+        
+    console.log("Id of the family is", id)
+    
     const {
       firstName,
       lastName,

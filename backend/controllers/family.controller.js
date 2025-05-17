@@ -1,4 +1,5 @@
 const { PrismaClient } = require("@prisma/client")
+const {ObjectId} = require("mongodb")
 const prisma = new PrismaClient()
 
 // Get all families with access control
@@ -142,7 +143,7 @@ const createFamily = async (req, res) => {
       familyType,
       inspectionStatus,
       registrationAddress,
-      statusReason,
+       settingReason,
       tzhsReason,
       nbReason,
       familyIncome,
@@ -184,10 +185,17 @@ const createFamily = async (req, res) => {
       data: {
         caseNumber,
         familyName,
+          familyType,
+          children,
+          settingReason,
+          tzhsReason,
+          nbReason,
+            familyIncome,
         address,
         region,
         district,
         city,
+          workplace,
         status,
         riskLevel,
         riskFactors,
@@ -203,6 +211,11 @@ const createFamily = async (req, res) => {
         referralSource,
         primaryLanguage,
         hasInterpreterNeeded,
+          needsSupport,
+          needsEducation,
+          needsHealth,
+          needsPolice,
+          hasDisability,
         createdBy: {
           connect: { id: req.user.id },
         },
@@ -249,6 +262,7 @@ const createFamily = async (req, res) => {
 const updateFamily = async (req, res) => {
   try {
     const { id } = req.params
+    console.log("Id of the family is", id)
     const {
       familyName,
       address,
@@ -259,6 +273,19 @@ const updateFamily = async (req, res) => {
       riskLevel,
       riskFactors,
       notes,
+      children,
+      settingReason,
+        nbReason,
+        tzhsReason,
+        inspectionStatus,
+        employment,
+        workplace,
+        familyIncome,
+        needsSupport,
+        needsEducation,
+        needsHealth,
+        needsPolice,
+        hasDisability,
       isActive,
       inactiveReason,
       contactPhone,
@@ -326,6 +353,19 @@ const updateFamily = async (req, res) => {
         status,
         riskLevel,
         riskFactors,
+        children,
+        settingReason,
+            nbReason,
+          tzhsReason,
+          inspectionStatus,
+          employment,
+          workplace,
+          familyIncome,
+          needsSupport,
+            needsEducation,
+            needsHealth,
+            needsPolice,
+            hasDisability,
         notes,
         isActive,
         inactiveReason,

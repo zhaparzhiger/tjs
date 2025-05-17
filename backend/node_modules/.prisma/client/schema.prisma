@@ -54,6 +54,8 @@ model Family {
   isActive             Boolean  @default(true)
   inactiveReason       String?
   notes                String?
+  children             Int?
+  settingReason        String?
   inspectionStatus     String?  @default("not-inspected")
   familyType           String?  @default("full")
   housingType          String?  @default("apartment")

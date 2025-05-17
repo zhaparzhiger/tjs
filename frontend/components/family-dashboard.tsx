@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React from "react"
 import Link from "next/link"
 import { Search, UserPlus, Filter, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -10,16 +10,65 @@ import { FamilyDataTable } from "@/components/family-data-table"
 import { StatisticsCards } from "@/components/statistics-cards"
 import { type UserRole, roleConfigs } from "@/types/roles"
 import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/hooks/use-toast";
 
 interface FamilyDashboardProps {
   role: UserRole
 }
 
 export function FamilyDashboard({ role }: FamilyDashboardProps) {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  const [families, setFamilies] = React.useState([])
+    const [searchQuery, setSearchQuery] = React.useState("")
+  const [isLoading, setIsLoading] = React.useState(false)
+    const { toast } = useToast();
+  
   const roleConfig = roleConfigs[role]
 
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const token = localStorage.getItem("auth_token");
+        if (!token) {
+          toast({
+            title: "Ошибка",
+            description: "Токен авторизации отсутствует",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const response = await fetch("http://localhost:5555/api/families", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+        if (!Array.isArray(responseJson)) {
+          throw new Error("Unexpected data format: expected an array");
+        }
+
+        setFamilies(responseJson);
+      } catch (error) {
+        console.error("Error fetching families:", error);
+        toast({
+          title: "Ошибка",
+          description: error.message || "Не удалось загрузить данные",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [toast]);
+  
   const refreshData = () => {
     setIsLoading(true)
     setTimeout(() => {
@@ -78,7 +127,7 @@ export function FamilyDashboard({ role }: FamilyDashboardProps) {
               <CardDescription>Недавно добавленные и обновленные записи</CardDescription>
             </div>
             <Badge variant="outline" className="font-normal">
-              Всего: 1,248 семей
+              Всего: {families.length} семей
             </Badge>
           </div>
         </CardHeader>
