@@ -14,14 +14,14 @@ const getAllFamilies = async (req, res) => {
         createdBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },
         updatedBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },
@@ -56,14 +56,14 @@ const getFamilyById = async (req, res) => {
         createdBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },
         updatedBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },
@@ -73,7 +73,7 @@ const getFamilyById = async (req, res) => {
             createdBy: {
               select: {
                 id: true,
-                username: true,
+                iin: true,
                 fullName: true,
               },
             },
@@ -84,7 +84,7 @@ const getFamilyById = async (req, res) => {
             uploadedBy: {
               select: {
                 id: true,
-                username: true,
+                iin: true,
                 fullName: true,
               },
             },
@@ -234,14 +234,14 @@ const createFamily = async (req, res) => {
         createdBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },
         updatedBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },
@@ -393,14 +393,14 @@ const updateFamily = async (req, res) => {
         createdBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },
         updatedBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },
@@ -460,14 +460,14 @@ const getFamiliesByStatus = async (req, res) => {
         createdBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },
         updatedBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },
@@ -507,14 +507,14 @@ const getFamiliesByRiskLevel = async (req, res) => {
         createdBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },
         updatedBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },
@@ -598,14 +598,14 @@ const searchFamilies = async (req, res) => {
         createdBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },
         updatedBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },

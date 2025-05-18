@@ -9,38 +9,36 @@ async function main() {
   // Create admin user
   const adminPassword = await bcrypt.hash("admin123", 10);
   const admin = await prisma.user.upsert({
-    where: { username: "admin" },
-    update: {},
+    where: { iin: "123456789012" }, // Use unique iin instead of username
+    update: {}, // Update nothing if exists (or specify fields to update)
     create: {
-      username: "admin",
+      iin: "123456789012",
       password: adminPassword,
       fullName: "Admin User",
-      email: "admin@example.com",
       role: "admin",
       isActive: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
   });
-  console.log("Admin user created:", admin.username);
+  console.log("Admin user created:", admin.iin);
 
   // Create social worker user
   const socialWorkerPassword = await bcrypt.hash("worker123", 10);
   const socialWorker = await prisma.user.upsert({
-    where: { username: "socialworker" },
+    where: { iin: "987654321098" }, // Use unique iin
     update: {},
     create: {
-      username: "socialworker",
+      iin: "987654321098",
       password: socialWorkerPassword,
       fullName: "Social Worker",
-      email: "worker@example.com",
       role: "social",
       isActive: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
   });
-  console.log("Social worker user created:", socialWorker.username);
+  console.log("Social worker user created:", socialWorker.iin);
 
   // Create sample families
   const families = [
@@ -59,6 +57,7 @@ async function main() {
       createdById: admin.id,
       updatedById: admin.id,
       isActive: true,
+      socialBenefits: [], // Added to match schema
     },
     {
       caseNumber: "F2023-002",
@@ -75,6 +74,7 @@ async function main() {
       createdById: admin.id,
       updatedById: admin.id,
       isActive: true,
+      socialBenefits: [],
     },
     {
       caseNumber: "F2023-003",
@@ -92,6 +92,7 @@ async function main() {
       updatedById: admin.id,
       isActive: false,
       inactiveReason: "Case closed",
+      socialBenefits: [],
     },
   ];
 
@@ -119,6 +120,9 @@ async function main() {
             healthStatus: "good",
             notes: "Father, main provider",
             isActive: true,
+            chronicConditions: [], // Added to match schema
+            allergies: [],
+            medications: [],
           },
           {
             familyId: family.id,
@@ -132,6 +136,9 @@ async function main() {
             healthStatus: "good",
             notes: "Mother, works part-time",
             isActive: true,
+            chronicConditions: [],
+            allergies: [],
+            medications: [],
           },
           {
             familyId: family.id,
@@ -144,6 +151,9 @@ async function main() {
             healthStatus: "good",
             notes: "Son, attends local elementary school",
             isActive: true,
+            chronicConditions: [],
+            allergies: [],
+            medications: [],
           },
           {
             familyId: family.id,
@@ -156,6 +166,9 @@ async function main() {
             healthStatus: "good",
             notes: "Daughter, attends local elementary school",
             isActive: true,
+            chronicConditions: [],
+            allergies: [],
+            medications: [],
           },
           {
             familyId: family.id,
@@ -167,6 +180,9 @@ async function main() {
             healthStatus: "good",
             notes: "Infant daughter",
             isActive: true,
+            chronicConditions: [],
+            allergies: [],
+            medications: [],
           },
         ],
       });
@@ -188,6 +204,9 @@ async function main() {
             healthStatus: "fair",
             notes: "Single mother, works full-time",
             isActive: true,
+            chronicConditions: [],
+            allergies: [],
+            medications: [],
           },
           {
             familyId: family.id,
@@ -200,6 +219,9 @@ async function main() {
             healthStatus: "good",
             notes: "Son, behavioral issues at school",
             isActive: true,
+            chronicConditions: [],
+            allergies: [],
+            medications: [],
           },
           {
             familyId: family.id,
@@ -212,6 +234,9 @@ async function main() {
             healthStatus: "good",
             notes: "Daughter, starting kindergarten soon",
             isActive: true,
+            chronicConditions: [],
+            allergies: [],
+            medications: [],
           },
         ],
       });
@@ -233,6 +258,9 @@ async function main() {
             healthStatus: "good",
             notes: "Father, stable employment",
             isActive: true,
+            chronicConditions: [],
+            allergies: [],
+            medications: [],
           },
           {
             familyId: family.id,
@@ -246,6 +274,9 @@ async function main() {
             healthStatus: "good",
             notes: "Mother, works as elementary school teacher",
             isActive: true,
+            chronicConditions: [],
+            allergies: [],
+            medications: [],
           },
           {
             familyId: family.id,
@@ -258,6 +289,9 @@ async function main() {
             healthStatus: "excellent",
             notes: "Son, good academic performance",
             isActive: true,
+            chronicConditions: [],
+            allergies: [],
+            medications: [],
           },
           {
             familyId: family.id,
@@ -270,6 +304,9 @@ async function main() {
             healthStatus: "good",
             notes: "Daughter, attends preschool",
             isActive: true,
+            chronicConditions: [],
+            allergies: [],
+            medications: [],
           },
         ],
       });

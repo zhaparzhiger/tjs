@@ -1,15 +1,14 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
+import type React from "react";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,142 +28,328 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { UserPlus, Edit, Trash2, Lock } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import { getFromStorage, saveToStorage, STORAGE_KEYS } from "@/lib/storage-utils"
-import type { User } from "@/types/models"
+} from "@/components/ui/alert-dialog";
+import { UserPlus, Edit, Trash2, Lock } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+interface User {
+  id: string;
+  iin: string;
+  fullName: string;
+  role: string;
+  region: string;
+  district: string;
+  city: string;
+  status: string;
+}
+
+const regions = [
+  "Акмолинская",
+  "Актюбинская",
+  "Алматинская",
+  "Атырауская",
+  "Восточно-Казахстанская",
+  "Жамбылская",
+  "Западно-Казахстанская",
+  "Карагандинская",
+  "Костанайская",
+  "Кзыл-Ординская",
+  "Мангистауская",
+  "Павлодарская",
+  "Северо-Казахстанская",
+  "Южно-Казахстанская",
+];
+
+const roleMap = {
+  "Администратор": "admin",
+  "Образование": "school",
+  "Социальная сфера": "social",
+  "Полиция": "police",
+  "Здравоохранение": "health",
+};
+
+const roleDisplayMap = {
+  admin: "Администратор",
+  school: "Образование",
+  social: "Социальная сфера",
+  police: "Полиция",
+  health: "Здравоохранение",
+};
 
 export function UserManagement() {
-  const { toast } = useToast()
-  const [users, setUsers] = useState<User[]>(() => {
-    // Получаем пользователей из localStorage или используем демо-данные
-    return getFromStorage<User[]>(STORAGE_KEYS.USERS, [
-      {
-        id: 1,
-        name: "Иванов Петр",
-        email: "p.ivanov@example.com",
-        role: "admin",
-        organization: "Областной акимат Павлодарской области",
-        status: "active",
-      },
-      {
-        id: 2,
-        name: "Петрова Анна",
-        email: "a.petrova@example.com",
-        role: "school",
-        organization: "Школа №45",
-        status: "active",
-      },
-      {
-        id: 3,
-        name: "Сидоров Алексей",
-        email: "a.sidorov@example.com",
-        role: "social",
-        organization: "Отдел социальной защиты",
-        status: "active",
-      },
-      {
-        id: 4,
-        name: "Ким Елена",
-        email: "e.kim@example.com",
-        role: "police",
-        organization: "Отдел полиции №2",
-        status: "active",
-      },
-      {
-        id: 5,
-        name: "Ахметов Серик",
-        email: "s.akhmetov@example.com",
-        role: "health",
-        organization: "Поликлиника №5",
-        status: "inactive",
-      },
-    ])
-  })
-
-  // Добавим состояние для формы добавления пользователя
+  const { toast } = useToast();
+  const [users, setUsers] = useState<User[]>([]);
   const [newUser, setNewUser] = useState({
-    name: "",
-    email: "",
-    role: "admin",
-    organization: "",
-  })
+    iin: "",
+    password: "",
+    fullName: "",
+    role: "Администратор",
+    region: "",
+    district: "",
+    city: "",
+    position: "",
+  });
+  const [editUser, setEditUser] = useState<User | null>(null);
+  const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [isEditUserOpen, setIsEditUserOpen] = useState(false);
 
-  const [isAddUserOpen, setIsAddUserOpen] = useState(false)
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch("http://localhost:5555/api/users", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+          },
+        });
+        if (!response.ok) {
+          throw new Error("Failed to fetch users");
+        }
+        const data = await response.json();
+        setUsers(
+          data.map((user: any) => ({
+            id: user.id,
+            iin: user.iin,
+            fullName: user.fullName,
+            role: roleDisplayMap[user.role as keyof typeof roleDisplayMap] || user.role,
+            region: user.region,
+            district: user.district,
+            city: user.city,
+            status: user.isActive ? "active" : "inactive",
+          }))
+        );
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        toast({
+          title: "Ошибка",
+          description: "Не удалось загрузить пользователей",
+          variant: "destructive",
+        });
+      }
+    };
 
-  const handleAddUser = (e: React.FormEvent) => {
-    e.preventDefault()
+    fetchUsers();
+  }, []);
 
-    // Создаем нового пользователя
-    const user: User = {
-      id: Math.max(0, ...users.map((u) => u.id)) + 1,
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
-      organization: newUser.organization,
-      status: "active",
+  const validateIIN = (iin: string) => {
+    return /^\d{12}$/.test(iin);
+  };
+
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validate IIN
+    if (!validateIIN(newUser.iin)) {
+      toast({
+        title: "Ошибка",
+        description: "ИИН должен состоять из 12 цифр",
+        variant: "destructive",
+      });
+      return;
     }
 
-    // Обновляем состояние
-    const updatedUsers = [...users, user]
-    setUsers(updatedUsers)
+    try {
+      const response = await fetch("http://localhost:5555/api/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+        },
+        body: JSON.stringify({
+          iin: newUser.iin,
+          password: newUser.password,
+          fullName: newUser.fullName,
+          role: newUser.role,
+          region: newUser.region,
+          district: newUser.district,
+          city: newUser.city,
+          position: newUser.position,
+          isActive: true,
+        }),
+      });
 
-    // Сохраняем в localStorage
-    saveToStorage(STORAGE_KEYS.USERS, updatedUsers)
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create user");
+      }
 
-    // Закрываем диалог и показываем уведомление
-    setIsAddUserOpen(false)
-    setNewUser({ name: "", email: "", role: "admin", organization: "" })
+      const data = await response.json();
+      setUsers([
+        ...users,
+        {
+          id: data.user.id,
+          iin: data.user.iin,
+          fullName: data.user.fullName,
+          role: roleDisplayMap[data.user.role as keyof typeof roleDisplayMap] || data.user.role,
+          region: data.user.region,
+          district: data.user.district,
+          city: data.user.city,
+          status: "active",
+        },
+      ]);
 
-    toast({
-      title: "Пользователь добавлен",
-      description: "Новый пользователь успешно добавлен в систему",
-    })
-  }
+      setIsAddUserOpen(false);
+      setNewUser({ iin: "", password: "", fullName: "", role: "Администратор", region: "", district: "", city: "", position: "" });
 
-  const handleResetPassword = (userId: number) => {
-    // Имитация сброса пароля
-    toast({
-      title: "Пароль сброшен",
-      description: "Временный пароль отправлен на email пользователя",
-    })
-  }
+      toast({
+        title: "Пользователь добавлен",
+        description: "Новый пользователь успешно добавлен в систему",
+      });
+    } catch (error: any) {
+      console.error("Error creating user:", error);
+      toast({
+        title: "Ошибка",
+        description: error.message || "Не удалось создать пользователя",
+        variant: "destructive",
+      });
+    }
+  };
 
-  const handleDeleteUser = (userId: number) => {
-    // Удаляем пользователя из состояния
-    const updatedUsers = users.filter((user) => user.id !== userId)
-    setUsers(updatedUsers)
+  const handleEditUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editUser) return;
 
-    // Сохраняем в localStorage
-    saveToStorage(STORAGE_KEYS.USERS, updatedUsers)
+    // Validate IIN
+    if (!validateIIN(newUser.iin)) {
+      toast({
+        title: "Ошибка",
+        description: "ИИН должен состоять из 12 цифр",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    toast({
-      title: "Пользователь удален",
-      description: "Пользователь успешно удален из системы",
-    })
-  }
+    try {
+      const response = await fetch(`http://localhost:5555/api/users/${editUser.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+        },
+        body: JSON.stringify({
+          fullName: newUser.fullName,
+          role: newUser.role,
+          region: newUser.region,
+          district: newUser.district,
+          city: newUser.city,
+          position: newUser.position,
+          isActive: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update user");
+      }
+
+      const data = await response.json();
+      setUsers(
+        users.map((user) =>
+          user.id === editUser.id
+            ? {
+                ...user,
+                iin: newUser.iin,
+                fullName: newUser.fullName,
+                role: roleDisplayMap[data.user.role as keyof typeof roleDisplayMap] || data.user.role,
+                region: newUser.region,
+                district: newUser.district,
+                city: newUser.city,
+              }
+            : user
+        )
+      );
+
+      setIsEditUserOpen(false);
+      setNewUser({ iin: "", password: "", fullName: "", role: "Администратор", region: "", district: "", city: "", position: "" });
+      setEditUser(null);
+
+      toast({
+        title: "Пользователь обновлен",
+        description: "Данные пользователя успешно обновлены",
+      });
+    } catch (error: any) {
+      console.error("Error updating user:", error);
+      toast({
+        title: "Ошибка",
+        description: error.message || "Не удалось обновить пользователя",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleResetPassword = async (userId: string) => {
+    try {
+      const response = await fetch(`http://localhost:5555/api/users/${userId}/reset-password`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+        },
+        body: JSON.stringify({ newPassword: "temporaryPassword" }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to reset password");
+      }
+
+      toast({
+        title: "Пароль сброшен",
+        description: "Временный пароль отправлен пользователю",
+      });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось сбросить пароль",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      const response = await fetch(`http://localhost:5555/api/users/${userId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete user");
+      }
+
+      setUsers(users.filter((user) => user.id !== userId));
+
+      toast({
+        title: "Пользователь удален",
+        description: "Пользователь успешно удален из системы",
+      });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось удалить пользователя",
+        variant: "destructive",
+      });
+    }
+  };
 
   const getRoleBadge = (role: string) => {
     switch (role) {
-      case "admin":
-        return <Badge className="bg-red-600">Администратор</Badge>
-      case "school":
-        return <Badge className="bg-green-600">Школа</Badge>
-      case "social":
-        return <Badge className="bg-blue-600">Соц. защита</Badge>
-      case "police":
-        return <Badge className="bg-yellow-600">Полиция</Badge>
-      case "health":
-        return <Badge className="bg-orange-400">Здравоохранение</Badge>
-      case "district":
-        return <Badge className="bg-purple-600">Район</Badge>
-      case "mobile":
-        return <Badge className="bg-sky-500">Мобильная группа</Badge>
+      case "Администратор":
+        return <Badge className="bg-red-600">Администратор</Badge>;
+      case "Образование":
+        return <Badge className="bg-green-600">Образование</Badge>;
+      case "Социальная сфера":
+        return <Badge className="bg-blue-600">Соц. защита</Badge>;
+      case "Полиция":
+        return <Badge className="bg-yellow-600">Полиция</Badge>;
+      case "Здравоохранение":
+        return <Badge className="bg-orange-400">Здравоохранение</Badge>;
       default:
-        return <Badge>Неизвестно</Badge>
+        return <Badge>Неизвестно</Badge>;
     }
-  }
+  };
 
   const getStatusBadge = (status: string) => {
     return status === "active" ? (
@@ -175,13 +360,23 @@ export function UserManagement() {
       <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
         Неактивен
       </Badge>
-    )
-  }
+    );
+  };
 
-  const handleEditUser = (user: User) => {
-    // TODO: Implement edit user functionality
-    alert(`Редактирование пользователя ${user.name}`)
-  }
+  const openEditUser = (user: User) => {
+    setEditUser(user);
+    setNewUser({
+      iin: user.iin,
+      password: "",
+      fullName: user.fullName,
+      role: user.role,
+      region: user.region,
+      district: user.district,
+      city: user.city,
+      position: "",
+    });
+    setIsEditUserOpen(true);
+  };
 
   return (
     <div className="grid gap-4 w-full max-w-full overflow-hidden">
@@ -206,21 +401,31 @@ export function UserManagement() {
               <form onSubmit={handleAddUser}>
                 <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="name">ФИО</Label>
+                    <Label htmlFor="iin">ИИН</Label>
                     <Input
-                      id="name"
-                      value={newUser.name}
-                      onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                      id="iin"
+                      value={newUser.iin}
+                      onChange={(e) => setNewUser({ ...newUser, iin: e.target.value })}
+                      required
+                      placeholder="Введите 12 цифр"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="password">Пароль</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={newUser.password}
+                      onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                       required
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="fullName">ФИО</Label>
                     <Input
-                      id="email"
-                      type="email"
-                      value={newUser.email}
-                      onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                      id="fullName"
+                      value={newUser.fullName}
+                      onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })}
                       required
                     />
                   </div>
@@ -231,23 +436,51 @@ export function UserManagement() {
                         <SelectValue placeholder="Выберите роль" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="admin">Администратор</SelectItem>
-                        <SelectItem value="school">Школа</SelectItem>
-                        <SelectItem value="social">Социальная защита</SelectItem>
-                        <SelectItem value="police">Полиция</SelectItem>
-                        <SelectItem value="health">Здравоохранение</SelectItem>
-                        <SelectItem value="district">Районный администратор</SelectItem>
-                        <SelectItem value="mobile">Мобильная группа</SelectItem>
+                        <SelectItem value="Администратор">Администратор</SelectItem>
+                        <SelectItem value="Образование">Образование</SelectItem>
+                        <SelectItem value="Социальная сфера">Социальная сфера</SelectItem>
+                        <SelectItem value="Полиция">Полиция</SelectItem>
+                        <SelectItem value="Здравоохранение">Здравоохранение</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="organization">Организация</Label>
+                    <Label htmlFor="region">Область</Label>
+                    <Select value={newUser.region} onValueChange={(value) => setNewUser({ ...newUser, region: value })}>
+                      <SelectTrigger id="region">
+                        <SelectValue placeholder="Выберите область" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {regions.map((region) => (
+                          <SelectItem key={region} value={region}>
+                            {region}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="district">Район</Label>
                     <Input
-                      id="organization"
-                      value={newUser.organization}
-                      onChange={(e) => setNewUser({ ...newUser, organization: e.target.value })}
-                      required
+                      id="district"
+                      value={newUser.district}
+                      onChange={(e) => setNewUser({ ...newUser, district: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="city">Город</Label>
+                    <Input
+                      id="city"
+                      value={newUser.city}
+                      onChange={(e) => setNewUser({ ...newUser, city: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="position">Должность</Label>
+                    <Input
+                      id="position"
+                      value={newUser.position}
+                      onChange={(e) => setNewUser({ ...newUser, position: e.target.value })}
                     />
                   </div>
                 </div>
@@ -259,15 +492,16 @@ export function UserManagement() {
           </Dialog>
         </CardHeader>
         <CardContent className="p-0 sm:p-2 md:p-4">
-          {/* Десктопная версия таблицы */}
           <div className="users-table-container desktop-user-table">
             <Table className="enhanced-table">
               <TableHeader>
                 <TableRow>
                   <TableHead>ФИО</TableHead>
-                  <TableHead>Email</TableHead>
+                  <TableHead>ИИН</TableHead>
                   <TableHead>Роль</TableHead>
-                  <TableHead className="hide-on-small">Организация</TableHead>
+                  <TableHead>Область</TableHead>
+                  <TableHead>Район</TableHead>
+                  <TableHead>Город</TableHead>
                   <TableHead>Статус</TableHead>
                   <TableHead>Действия</TableHead>
                 </TableRow>
@@ -275,17 +509,19 @@ export function UserManagement() {
               <TableBody>
                 {users.map((user) => (
                   <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.name}</TableCell>
-                    <TableCell>{user.email}</TableCell>
+                    <TableCell className="font-medium">{user.fullName}</TableCell>
+                    <TableCell>{user.iin}</TableCell>
                     <TableCell>{getRoleBadge(user.role)}</TableCell>
-                    <TableCell className="hide-on-small">{user.organization}</TableCell>
+                    <TableCell>{user.region}</TableCell>
+                    <TableCell>{user.district}</TableCell>
+                    <TableCell>{user.city}</TableCell>
                     <TableCell>{getStatusBadge(user.status)}</TableCell>
                     <TableCell>
                       <div className="user-actions-container">
                         <Button variant="outline" size="sm" onClick={() => handleResetPassword(user.id)}>
                           Сброс пароля
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleEditUser(user)}>
+                        <Button variant="outline" size="sm" onClick={() => openEditUser(user)}>
                           Изменить
                         </Button>
                         <Button variant="destructive" size="sm" onClick={() => handleDeleteUser(user.id)}>
@@ -298,24 +534,24 @@ export function UserManagement() {
               </TableBody>
             </Table>
           </div>
-
-          {/* Мобильная версия в виде карточек */}
           <div className="mobile-user-cards">
             {users.map((user) => (
               <div key={user.id} className="user-card">
                 <div className="user-card-header">
-                  <div className="user-card-title">{user.name}</div>
+                  <div className="user-card-title">{user.fullName}</div>
                   {getStatusBadge(user.status)}
                 </div>
                 <div className="user-card-content">
-                  <div className="user-card-label">Email:</div>
-                  <div className="user-card-value">{user.email}</div>
-
+                  <div className="user-card-label">ИИН:</div>
+                  <div className="user-card-value">{user.iin}</div>
                   <div className="user-card-label">Роль:</div>
                   <div className="user-card-value">{getRoleBadge(user.role)}</div>
-
-                  <div className="user-card-label">Организация:</div>
-                  <div className="user-card-value">{user.organization}</div>
+                  <div className="user-card-label">Область:</div>
+                  <div className="user-card-value">{user.region}</div>
+                  <div className="user-card-label">Район:</div>
+                  <div className="user-card-value">{user.district}</div>
+                  <div className="user-card-label">Город:</div>
+                  <div className="user-card-value">{user.city}</div>
                 </div>
                 <div className="user-card-actions">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
@@ -323,7 +559,7 @@ export function UserManagement() {
                       <Lock className="mr-1 h-3 w-3" />
                       Сброс пароля
                     </Button>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => openEditUser(user)}>
                       <Edit className="mr-1 h-3 w-3" />
                       Изменить
                     </Button>
@@ -354,6 +590,95 @@ export function UserManagement() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={isEditUserOpen} onOpenChange={setIsEditUserOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Редактировать пользователя</DialogTitle>
+            <DialogDescription>Обновите данные пользователя</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditUser}>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="iin">ИИН</Label>
+                <Input
+                  id="iin"
+                  value={newUser.iin}
+                  onChange={(e) => setNewUser({ ...newUser, iin: e.target.value })}
+                  required
+                  placeholder="Введите 12 цифр"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="fullName">ФИО</Label>
+                <Input
+                  id="fullName"
+                  value={newUser.fullName}
+                  onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="role">Роль</Label>
+                <Select value={newUser.role} onValueChange={(value) => setNewUser({ ...newUser, role: value })}>
+                  <SelectTrigger id="role">
+                    <SelectValue placeholder="Выберите роль" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Администратор">Администратор</SelectItem>
+                    <SelectItem value="Образование">Образование</SelectItem>
+                    <SelectItem value="Социальная сфера">Социальная сфера</SelectItem>
+                    <SelectItem value="Полиция">Полиция</SelectItem>
+                    <SelectItem value="Здравоохранение">Здравоохранение</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="region">Область</Label>
+                <Select value={newUser.region} onValueChange={(value) => setNewUser({ ...newUser, region: value })}>
+                  <SelectTrigger id="region">
+                    <SelectValue placeholder="Выберите область" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {regions.map((region) => (
+                      <SelectItem key={region} value={region}>
+                        {region}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="district">Район</Label>
+                <Input
+                  id="district"
+                  value={newUser.district}
+                  onChange={(e) => setNewUser({ ...newUser, district: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="city">Город</Label>
+                <Input
+                  id="city"
+                  value={newUser.city}
+                  onChange={(e) => setNewUser({ ...newUser, city: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="position">Должность</Label>
+                <Input
+                  id="position"
+                  value={newUser.position}
+                  onChange={(e) => setNewUser({ ...newUser, position: e.target.value })}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit">Сохранить</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
-  )
+  );
 }

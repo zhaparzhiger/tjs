@@ -1,191 +1,149 @@
-const bcrypt = require("bcryptjs")
-const jwt = require("jsonwebtoken")
-const { PrismaClient } = require("@prisma/client")
-const prisma = new PrismaClient()
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const { PrismaClient } = require("@prisma/client");
 
-const JWT_SECRET = "vnos"
+const prisma = new PrismaClient();
+const JWT_SECRET = process.env.JWT_SECRET || "vnos";
 
-// Register a new user
-const register = async (req, res) => {
-  try {
-    const { username, password, fullName, email, phone, role, region, district, city, position } = req.body
+console.log("authController: JWT_SECRET:", JWT_SECRET);
 
-    // Check if username already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { username },
-    })
+const roleMap = {
+    "Администратор": "admin",
+    "Школа": "school",
+    "Район": "district",
+    "Мобильная группа": "mobile",
+    "Полиция": "police",
+    "Здравоохранение": "health",
+    "Регион": "regional",
+    "Социальная служба": "social",
+};
 
-    if (existingUser) {
-      return res.status(400).json({ message: "Username already exists" })
+const login = async(req, res) => {
+    try {
+        const { iin, password } = req.body;
+
+        if (!iin || !password) {
+            return res.status(400).json({ message: "ИИН и пароль обязательны" });
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { iin },
+        });
+
+        if (!user) {
+            return res.status(401).json({ message: "Неверные учетные данные" });
+        }
+
+        if (!user.isActive) {
+            return res.status(401).json({ message: "Аккаунт заблокирован" });
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            return res.status(401).json({ message: "Неверные учетные данные" });
+        }
+
+        await prisma.user.update({
+            where: { iin },
+            data: { lastLogin: new Date() },
+        });
+
+        const normalizedRole = roleMap[user.role] || user.role.toLowerCase();
+
+        const token = jwt.sign({
+                id: user.id,
+                iin: user.iin,
+                role: normalizedRole,
+                region: user.region,
+                district: user.district,
+                city: user.city,
+            },
+            JWT_SECRET, { expiresIn: process.env.JWT_EXPIRATION || "24h" }
+        );
+
+        const { password: _, ...userWithoutPassword } = user;
+
+        console.log("Login response:", { token, user: {...userWithoutPassword, role: normalizedRole } });
+
+        res.status(200).json({
+            message: "Вход выполнен успешно",
+            token,
+            user: {...userWithoutPassword, role: normalizedRole },
+        });
+    } catch (error) {
+        console.error("Ошибка в login controller:", error);
+        res.status(500).json({ message: "Ошибка сервера" });
     }
+};
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10)
-    const hashedPassword = await bcrypt.hash(password, salt)
+const getProfile = async(req, res) => {
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: req.user.id },
+            select: {
+                id: true,
+                iin: true,
+                fullName: true,
+                phone: true,
+                role: true,
+                region: true,
+                district: true,
+                city: true,
+                position: true,
+                isActive: true,
+                lastLogin: true,
+                createdAt: true,
+                updatedAt: true,
+            },
+        });
 
-    // Create new user
-    const newUser = await prisma.user.create({
-      data: {
-        username,
-        password: hashedPassword,
-        fullName,
-        email,
-        phone,
-        role,
-        region,
-        district,
-        city,
-        position,
-        isActive: true,
-      },
-    })
+        if (!user) {
+            return res.status(404).json({ message: "Пользователь не найден" });
+        }
 
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = newUser
+        const normalizedRole = roleMap[user.role] || user.role.toLowerCase();
 
-    res.status(201).json({
-      message: "User registered successfully",
-      user: userWithoutPassword,
-    })
-  } catch (error) {
-    console.error("Error in register controller:", error)
-    res.status(500).json({ message: "Server error" })
-  }
-}
-
-// Login user
-const login = async (req, res) => {
-  try {
-    const { username, password } = req.body
-
-    // Find user by username
-    const user = await prisma.user.findUnique({
-      where: { username },
-    })
-
-    if (!user) {
-      return res.status(401).json({ message: "Invalid credentials" })
+        res.status(200).json({...user, role: normalizedRole });
+    } catch (error) {
+        console.error("Ошибка в getProfile controller:", error);
+        res.status(500).json({ message: "Ошибка сервера" });
     }
+};
 
-    // Check if user is active
-    if (!user.isActive) {
-      return res.status(401).json({ message: "Account is disabled" })
+const changePassword = async(req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+
+        const user = await prisma.user.findUnique({
+            where: { id: req.user.id },
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: "Пользователь не найден" });
+        }
+
+        const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+        if (!isPasswordValid) {
+            return res.status(401).json({ message: "Текущий пароль неверный" });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        await prisma.user.update({
+            where: { id: req.user.id },
+            data: { password: hashedPassword },
+        });
+
+        res.status(200).json({ message: "Пароль успешно изменен" });
+    } catch (error) {
+        console.error("Ошибка в changePassword controller:", error);
+        res.status(500).json({ message: "Ошибка сервера" });
     }
-
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password)
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: "Invalid credentials" })
-    }
-
-    // Update last login
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLogin: new Date() },
-    })
-
-    // Generate JWT token
-    const token = jwt.sign(
-      {
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        region: user.region,
-        district: user.district,
-        city: user.city,
-      },
-      JWT_SECRET,
-      { expiresIn: "24h" },
-    )
-
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = user
-
-    res.status(200).json({
-      message: "Login successful",
-      token,
-      user: userWithoutPassword,
-    })
-  } catch (error) {
-    console.error("Error in login controller:", error)
-    res.status(500).json({ message: "Server error" })
-  }
-}
-
-// Get current user profile
-const getProfile = async (req, res) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      select: {
-        id: true,
-        username: true,
-        fullName: true,
-        email: true,
-        phone: true,
-        role: true,
-        region: true,
-        district: true,
-        city: true,
-        position: true,
-        isActive: true,
-        lastLogin: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    })
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" })
-    }
-
-    res.status(200).json(user)
-  } catch (error) {
-    console.error("Error in getProfile controller:", error)
-    res.status(500).json({ message: "Server error" })
-  }
-}
-
-// Change password
-const changePassword = async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body
-
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-    })
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" })
-    }
-
-    // Verify current password
-    const isPasswordValid = await bcrypt.compare(currentPassword, user.password)
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: "Current password is incorrect" })
-    }
-
-    // Hash new password
-    const salt = await bcrypt.genSalt(10)
-    const hashedPassword = await bcrypt.hash(newPassword, salt)
-
-    // Update password
-    await prisma.user.update({
-      where: { id: req.user.id },
-      data: { password: hashedPassword },
-    })
-
-    res.status(200).json({ message: "Password changed successfully" })
-  } catch (error) {
-    console.error("Error in changePassword controller:", error)
-    res.status(500).json({ message: "Server error" })
-  }
-}
+};
 
 module.exports = {
-  register,
-  login,
-  getProfile,
-  changePassword,
-}
+    login,
+    getProfile,
+    changePassword,
+};

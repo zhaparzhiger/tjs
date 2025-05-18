@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import React from "react"
 import Link from "next/link"
@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast";
 
 interface FamilyDashboardProps {
-  role: UserRole
+  role: UserRole;
 }
 
 export function FamilyDashboard({ role }: FamilyDashboardProps) {
@@ -70,11 +70,11 @@ export function FamilyDashboard({ role }: FamilyDashboardProps) {
   }, [toast]);
   
   const refreshData = () => {
-    setIsLoading(true)
+    setIsLoading(true);
     setTimeout(() => {
-      setIsLoading(false)
-    }, 1500)
-  }
+      setIsLoading(false);
+    }, 1500);
+  };
 
   return (
     <div className="grid gap-4 animate-fade-in w-full">
@@ -89,7 +89,7 @@ export function FamilyDashboard({ role }: FamilyDashboardProps) {
               <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
               Обновить
             </Button>
-            {roleConfig.permissions.canAddFamily && (
+            {roleConfig?.permissions?.canAddFamily && (
               <Link href={`/family/new?role=${role}`}>
                 <Button size="sm">
                   <UserPlus className="mr-2 h-4 w-4" />
@@ -136,5 +136,5 @@ export function FamilyDashboard({ role }: FamilyDashboardProps) {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
