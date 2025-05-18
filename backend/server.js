@@ -51,22 +51,17 @@ app.use("/api/statistics", statisticsRoutes)
 
 // Health check endpoint
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok", message: "Server is running" })
-})
+    res.status(200).json({ status: "ok", message: "Server is running" });
+});
 
-// Error handling middleware
-app.use(errorHandler)
+app.use(errorHandler);
 
-// Start server
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
-})
+    console.log(`Server running on port ${PORT}`);
+});
 
-// Handle unhandled promise rejections
 process.on("unhandledRejection", (err) => {
-  console.error("Unhandled Rejection:", err)
-  // Close server & exit process
-  // server.close(() => process.exit(1));
-})
+    console.error("Unhandled Rejection:", err);
+});
 
-module.exports = { app, prisma }
+module.exports = { app, prisma };

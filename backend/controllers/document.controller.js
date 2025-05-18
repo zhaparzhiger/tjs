@@ -79,7 +79,7 @@ const getAllDocuments = async (req, res) => {
         uploadedBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },
@@ -134,7 +134,7 @@ const getFamilyDocuments = async (req, res) => {
         uploadedBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },
@@ -163,7 +163,7 @@ const getDocumentById = async (req, res) => {
         uploadedBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },
@@ -272,7 +272,7 @@ const uploadDocument = async (req, res) => {
           uploadedBy: {
             select: {
               id: true,
-              username: true,
+              iin: true,
               fullName: true,
             },
           },

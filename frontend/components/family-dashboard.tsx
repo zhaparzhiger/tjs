@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState } from "react"
+import React from "react"
 import Link from "next/link"
 import { Search, UserPlus, Filter, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -10,22 +10,71 @@ import { FamilyDataTable } from "@/components/family-data-table"
 import { StatisticsCards } from "@/components/statistics-cards"
 import { type UserRole, roleConfigs } from "@/types/roles"
 import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/hooks/use-toast";
 
 interface FamilyDashboardProps {
-  role: UserRole
+  role: UserRole;
 }
 
 export function FamilyDashboard({ role }: FamilyDashboardProps) {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  const [families, setFamilies] = React.useState([])
+    const [searchQuery, setSearchQuery] = React.useState("")
+  const [isLoading, setIsLoading] = React.useState(false)
+    const { toast } = useToast();
+  
   const roleConfig = roleConfigs[role]
 
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const token = localStorage.getItem("auth_token");
+        if (!token) {
+          toast({
+            title: "Ошибка",
+            description: "Токен авторизации отсутствует",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const response = await fetch("http://localhost:5555/api/families", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error: ${response.status}`);
+        }
+
+        const responseJson = await response.json();
+        if (!Array.isArray(responseJson)) {
+          throw new Error("Unexpected data format: expected an array");
+        }
+
+        setFamilies(responseJson);
+      } catch (error) {
+        console.error("Error fetching families:", error);
+        toast({
+          title: "Ошибка",
+          description: error.message || "Не удалось загрузить данные",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [toast]);
+  
   const refreshData = () => {
-    setIsLoading(true)
+    setIsLoading(true);
     setTimeout(() => {
-      setIsLoading(false)
-    }, 1500)
-  }
+      setIsLoading(false);
+    }, 1500);
+  };
 
   return (
     <div className="grid gap-4 animate-fade-in w-full">
@@ -40,7 +89,7 @@ export function FamilyDashboard({ role }: FamilyDashboardProps) {
               <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
               Обновить
             </Button>
-            {roleConfig.permissions.canAddFamily && (
+            {roleConfig?.permissions?.canAddFamily && (
               <Link href={`/family/new?role=${role}`}>
                 <Button size="sm">
                   <UserPlus className="mr-2 h-4 w-4" />
@@ -78,7 +127,7 @@ export function FamilyDashboard({ role }: FamilyDashboardProps) {
               <CardDescription>Недавно добавленные и обновленные записи</CardDescription>
             </div>
             <Badge variant="outline" className="font-normal">
-              Всего: 1,248 семей
+              Всего: {families.length} семей
             </Badge>
           </div>
         </CardHeader>
@@ -87,5 +136,5 @@ export function FamilyDashboard({ role }: FamilyDashboardProps) {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

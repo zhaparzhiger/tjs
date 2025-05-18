@@ -12,10 +12,9 @@ datasource db {
 
 model User {
   id        String    @id @default(auto()) @map("_id") @db.ObjectId
-  username  String    @unique
+  iin       String    @unique // Обязательное поле, null не допускается
   password  String
   fullName  String
-  email     String?   @unique
   phone     String?
   role      String // admin, school, district, mobile, police, health, regional
   region    String?
@@ -38,6 +37,7 @@ model User {
   FamilyHistory FamilyHistory[]
 }
 
+// Остальные модели остаются без изменений
 model Family {
   id                  String  @id @default(auto()) @map("_id") @db.ObjectId
   caseNumber          String  @unique
@@ -56,6 +56,8 @@ model Family {
   isActive             Boolean  @default(true)
   inactiveReason       String?
   notes                String?
+  children             Int?
+  settingReason        String?
   inspectionStatus     String?  @default("not-inspected")
   familyType           String?  @default("full")
   housingType          String?  @default("apartment")
@@ -96,42 +98,40 @@ model FamilyMember {
   firstName           String
   lastName            String
   middleName          String?
-  birthDate           DateTime? // Nullable to handle missing birth dates
-  gender              String? // e.g., "male", "female", "other"
-  relationship        String // e.g., "mother", "father", "son", "daughter", "other"
-  documentType        String? // e.g., "passport", "birth certificate", "Удостоверение личности"
-  documentNumber      String?   @unique // Nullable but unique to enforce IIN uniqueness
-  documentIssueDate   DateTime? // For document issue date
-  documentExpiryDate  DateTime? // For document expiry date
-  registrationAddress String? // Address from frontend form
-  education           String? // e.g., "школа", "университет"
-  grade               String? // e.g., "6" for school grade
-  institution         String? // e.g., "КазНУ" for university
-  course              String? // e.g., "2" for university course
-  funding             String? // e.g., "budget", "paid", "grant"
-  meals               String? // e.g., "free", "paid", "none" for preschool
-  notes               String? // Free-text notes, e.g., ID card notes
-  status              String? // e.g., "Школьник", "Студент", "Взрослый", "Дошкольник"
+  birthDate           DateTime?
+  gender              String?
+  relationship        String
+  documentType        String?
+  documentNumber      String?   @unique
+  documentIssueDate   DateTime?
+  documentExpiryDate  DateTime?
+  registrationAddress String?
+  education           String?
+  grade               String?
+  institution         String?
+  course              String?
+  funding             String?
+  meals               String?
+  notes               String?
+  status              String?
   isActive            Boolean   @default(true)
-
-  // Additional fields from your provided model (optional in frontend)
-  citizenship       String? // e.g., "Kazakhstan"
-  ethnicity         String? // e.g., "Kazakh", "Russian"
-  maritalStatus     String? // e.g., "married", "single"
-  phoneNumber       String? // e.g., "+77012345678"
-  email             String? // e.g., "example@gmail.com"
-  employment        String? // e.g., "employed", "unemployed"
-  healthStatus      String? // e.g., "healthy", "chronic illness"
-  disabilities      String? // e.g., "visual impairment"
-  specialNeeds      Boolean  @default(false)
-  isHeadOfHousehold Boolean  @default(false)
-  primaryCaregiver  Boolean  @default(false)
-  incomeAmount      Float? // e.g., 150000.0
-  incomeSource      String? // e.g., "salary", "pension"
-  medicalInsurance  String? // e.g., "state", "private"
-  chronicConditions String[] // e.g., ["diabetes", "hypertension"]
-  allergies         String[] // e.g., ["peanuts", "pollen"]
-  medications       String[] // e.g., ["insulin", "antihistamine"]
+  citizenship         String?
+  ethnicity           String?
+  maritalStatus       String?
+  phoneNumber         String?
+  email               String?
+  employment          String?
+  healthStatus        String?
+  disabilities        String?
+  specialNeeds        Boolean   @default(false)
+  isHeadOfHousehold   Boolean   @default(false)
+  primaryCaregiver    Boolean   @default(false)
+  incomeAmount        Float?
+  incomeSource        String?
+  medicalInsurance    String?
+  chronicConditions   String[]
+  allergies           String[]
+  medications         String[]
 
   // Relations
   family          Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
@@ -144,7 +144,7 @@ model SupportMeasure {
   familyId    String    @db.ObjectId
   memberId    String?   @db.ObjectId
   type        String // financial, educational, medical, psychological, etc.
-  description String?
+  description String
   category    String? // social, health, education, etc.
   startDate   DateTime
   endDate     DateTime?
@@ -161,11 +161,11 @@ model SupportMeasure {
   contactPerson  String?
   contactPhone   String?
   contactEmail   String?
-  frequency      String? // one-time, weekly, monthly, etc.
+  frequency      String?
   location       String?
   followUpDate   DateTime?
   evaluationDate DateTime?
-  effectiveness  String? // effective, partially effective, not effective
+  effectiveness  String?
 
   // Relations
   family      Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
@@ -193,7 +193,7 @@ model Document {
   expirationDate DateTime?
   isConfidential Boolean   @default(false)
   tags           String[]
-  status         String? // valid, expired, pending
+  status         String?
 
   // Relations
   family         Family?         @relation(fields: [familyId], references: [id], onDelete: SetNull)

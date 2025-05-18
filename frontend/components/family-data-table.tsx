@@ -1,11 +1,11 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Eye, FileText, Edit, Trash2, Filter, Download, Search, MoreHorizontal } from "lucide-react"
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Eye, FileText, Edit, Trash2, Filter, Download, Search, MoreHorizontal } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,42 +16,66 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { useToast } from "@/hooks/use-toast"
-import { type UserRole, roleConfigs } from "@/types/roles"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Input } from "@/components/ui/input"
-import type { Family } from "@/types/models"
-import { Card, CardContent } from "@/components/ui/card"
-import { useIsMobile } from "@/hooks/use-mobile"
+} from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
+import { type UserRole, roleConfigs } from "@/types/roles";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Input } from "@/components/ui/input";
+import type { Family } from "@/types/models";
+import { Card, CardContent } from "@/components/ui/card";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface FamilyDataTableProps {
-  role: UserRole
+  role: UserRole;
 }
 
 export function FamilyDataTable({ role }: FamilyDataTableProps) {
-  const { toast } = useToast()
-  const [familyData, setFamilyData] = useState<Family[]>([])
-  const [searchTerm, setSearchTerm] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const roleConfig = roleConfigs[role]
-  const isMobile = useIsMobile()
+  const { toast } = useToast();
+  const [familyData, setFamilyData] = useState<Family[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const roleConfig = roleConfigs[role];
+  const isMobile = useIsMobile();
 
   // Fetch families from the backend
   useEffect(() => {
     const fetchFamilies = async () => {
-      setIsLoading(true)
+      setIsLoading(true);
+      setError(null);
       try {
-        const response = await fetch("http://localhost:5555/api/families", {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("auth_token")}`, // Assuming token is stored in localStorage
-          },
-        })
-        if (!response.ok) {
-          throw new Error("Failed to fetch families")
+        const token = localStorage.getItem("auth_token");
+        console.log("FamilyDataTable: Fetching families with token:", token?.slice(0, 10), "...", "role:", role);
+
+        if (!token) {
+          throw new Error("Токен авторизации отсутствует");
         }
-        const data = await response.json()
+
+        const response = await fetch("http://localhost:5555/api/families", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        console.log("FamilyDataTable: Response status:", response.status, "ok:", response.ok);
+
+        if (!response.ok) {
+          let errorMessage = `HTTP ошибка: ${response.status}`;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorMessage;
+          } catch (e) {
+            console.warn("FamilyDataTable: Не удалось разобрать тело ошибки");
+          }
+          throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+        console.log("FamilyDataTable: Received data:", data);
+
         // Map backend data to frontend Family type
         const mappedData: Family[] = data.map((family: any) => ({
           id: family.id,
@@ -61,63 +85,74 @@ export function FamilyDataTable({ role }: FamilyDataTableProps) {
           status: family.status,
           children: family._count?.members || 0,
           lastUpdate: new Date(family.lastUpdate).toLocaleDateString(),
-        }))
-        setFamilyData(mappedData)
+        }));
+
+        setFamilyData(mappedData);
       } catch (error) {
-        console.error("Error fetching families:", error)
+        console.error("FamilyDataTable: Error fetching families:", error);
+        setError(error instanceof Error ? error.message : "Не удалось загрузить данные о семьях");
         toast({
           title: "Ошибка",
-          description: "Не удалось загрузить данные о семьях",
+          description: error instanceof Error ? error.message : "Не удалось загрузить данные о семьях",
           variant: "destructive",
-        })
+        });
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    fetchFamilies()
-  }, []) // Empty dependency array to fetch once on mount
+    fetchFamilies();
+  }, []); // Empty dependency array to fetch once on mount
 
   // Delete family
   const handleDelete = async (id: string) => {
     try {
+      const token = localStorage.getItem("auth_token");
+      if (!token) {
+        throw new Error("Токен авторизации отсутствует");
+      }
+
       const response = await fetch(`http://localhost:5555/api/families/${id}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
-      })
+      });
+
       if (!response.ok) {
-        throw new Error("Failed to delete family")
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete family");
       }
-      setFamilyData(familyData.filter((family) => family.id !== id))
+
+      setFamilyData(familyData.filter((family) => family.id !== id));
       toast({
         title: "Семья удалена",
         description: "Запись о семье успешно удалена из базы данных",
-      })
+      });
     } catch (error) {
-      console.error("Error deleting family:", error)
+      console.error("FamilyDataTable: Error deleting family:", error);
       toast({
         title: "Ошибка",
         description: "Не удалось удалить семью",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   const handleExport = () => {
     toast({
       title: "Экспорт данных",
       description: "Данные экспортированы в Excel",
-    })
-  }
+    });
+  };
 
   const filteredData = familyData.filter(
     (family) =>
       family.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       family.iin?.includes(searchTerm) ||
       family.address?.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  );
 
   // MobileFamilyCard component (unchanged)
   const MobileFamilyCard = ({ family }: { family: Family }) => (
@@ -208,7 +243,20 @@ export function FamilyDataTable({ role }: FamilyDataTableProps) {
         </div>
       </CardContent>
     </Card>
-  )
+  );
+
+  if (error) {
+    return (
+      <Card className="enhanced-card">
+        <CardContent className="p-6 text-center">
+          <p className="text-red-500 mb-4">{error}</p>
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            Попробовать снова
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="enhanced-card">
@@ -439,5 +487,5 @@ export function FamilyDataTable({ role }: FamilyDataTableProps) {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

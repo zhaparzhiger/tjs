@@ -25,7 +25,7 @@ const getFamilySupport = async (req, res) => {
         createdBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },
@@ -42,7 +42,7 @@ const getFamilySupport = async (req, res) => {
             uploadedBy: {
               select: {
                 id: true,
-                username: true,
+                iin: true,
                 fullName: true,
               },
             },
@@ -72,7 +72,7 @@ const getSupportMeasureById = async (req, res) => {
         createdBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },
@@ -81,7 +81,7 @@ const getSupportMeasureById = async (req, res) => {
             uploadedBy: {
               select: {
                 id: true,
-                username: true,
+                iin: true,
                 fullName: true,
               },
             },
@@ -203,7 +203,7 @@ const createSupportMeasure = async (req, res) => {
       },
       include: {
         createdBy: {
-          select: { id: true, username: true, fullName: true },
+          select: { id: true, iin: true, fullName: true },
         },
         member: true,
       },
@@ -337,7 +337,7 @@ const updateSupportMeasure = async (req, res) => {
         createdBy: { connect: { id: createdById || req.user.id } },
       },
       include: {
-        createdBy: { select: { id: true, username: true, fullName: true } },
+        createdBy: { select: { id: true, iin: true, fullName: true } },
         member: true,
       },
     })
@@ -461,7 +461,7 @@ const getSupportMeasuresByType = async (req, res) => {
         createdBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },
@@ -518,7 +518,7 @@ const getSupportMeasuresByStatus = async (req, res) => {
         createdBy: {
           select: {
             id: true,
-            username: true,
+            iin: true,
             fullName: true,
           },
         },

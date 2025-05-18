@@ -189,7 +189,7 @@ export function FamilySupportExtended({ family, role }: FamilySupportExtendedPro
           ? "В процессе"
           : "Отказано",
       notes: data.notes || "No description provided",
-      createdBy: user?.fullName || user?.username || "System",
+      createdBy: user?.fullName || user?.iin || "System",
     };
 
     try {

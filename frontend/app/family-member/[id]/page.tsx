@@ -34,7 +34,10 @@ export default function FamilyMemberPage({ params: paramsPromise }: { params: Pr
         const memberData = await FamilyService.getFamilyMemberById(params.id);
         if (memberData) {
           setMember(memberData);
-          setFormData(memberData);
+          setFormData({
+            ...memberData,
+            birthDate: memberData.birthDate ? new Date(memberData.birthDate).toISOString().split("T")[0] : "",
+          });
         } else {
           toast({
             title: "Ошибка",
@@ -56,12 +59,12 @@ export default function FamilyMemberPage({ params: paramsPromise }: { params: Pr
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    setFormData((prev) => ({ ...prev, [id]: value }));
+    setFormData((prev) => ({ ...prev, [id]: value || "" }));
   };
 
   const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    setFormData((prev) => ({ ...prev, [id]: Number.parseInt(value) || 0 }));
+    setFormData((prev) => ({ ...prev, [id]: value ? Number.parseInt(value) : 0 }));
   };
 
   const handleSelectChange = (id: string, value: string) => {
@@ -82,6 +85,10 @@ export default function FamilyMemberPage({ params: paramsPromise }: { params: Pr
         const updatedMember = await FamilyService.updateFamilyMember(member.id, formData);
         if (updatedMember) {
           setMember(updatedMember);
+          setFormData({
+            ...updatedMember,
+            birthDate: updatedMember.birthDate ? new Date(updatedMember.birthDate).toISOString().split("T")[0] : "",
+          });
           setIsEditing(false);
           toast({
             title: "Изменения сохранены",
@@ -149,6 +156,7 @@ export default function FamilyMemberPage({ params: paramsPromise }: { params: Pr
           </div>
         </div>
 
+        {/* Основная информация */}
         <Card>
           <CardHeader>
             <CardTitle>Основная информация</CardTitle>
@@ -174,13 +182,21 @@ export default function FamilyMemberPage({ params: paramsPromise }: { params: Pr
                 />
               </div>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="birthDate">Дата рождения</Label>
+                <Input
+                  id="birthDate"
+                  type="text"
+                  value={formData.birthDate || ""}
+                  readOnly={true}
+                />
+              </div>
               <div className="grid gap-2">
                 <Label htmlFor="relation">Родственная связь</Label>
                 {isEditing ? (
                   <Select
-                    value={formData.relation}
+                    value={formData.relation || ""}
                     onValueChange={(value) => handleSelectChange("relation", value)}
                   >
                     <SelectTrigger id="relation">
@@ -211,11 +227,13 @@ export default function FamilyMemberPage({ params: paramsPromise }: { params: Pr
                   readOnly={!isEditing}
                 />
               </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="status">Статус</Label>
                 {isEditing ? (
                   <Select
-                    value={formData.status}
+                    value={formData.status || ""}
                     onValueChange={(value) => handleSelectChange("status", value)}
                   >
                     <SelectTrigger id="status">
@@ -231,6 +249,52 @@ export default function FamilyMemberPage({ params: paramsPromise }: { params: Pr
                 ) : (
                   <Input value={formData.status || ""} readOnly />
                 )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Адрес */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Адрес</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="registrationAddress">Адрес регистрации</Label>
+                <Input
+                  id="registrationAddress"
+                  value={formData.registrationAddress || ""}
+                  readOnly={true}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Образование */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Образование</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="institution">Учебное заведение</Label>
+                <Input
+                  id="institution"
+                  value={formData.institution || ""}
+                  readOnly={true}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="course">Курс</Label>
+                <Input
+                  id="course"
+                  value={formData.course || ""}
+                  readOnly={true}
+                />
               </div>
             </div>
           </CardContent>

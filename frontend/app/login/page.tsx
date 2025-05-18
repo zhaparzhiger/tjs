@@ -1,50 +1,74 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, Eye, EyeOff } from "lucide-react"
-import { useAuth } from "@/context/auth-context"
+import type React from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, Eye, EyeOff } from "lucide-react";
+import { useAuth } from "@/context/auth-context";
 
 export default function LoginPage() {
-  const router = useRouter()
-  const { login, isAuthenticated } = useAuth()
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
+  const router = useRouter();
+  const { login, isAuthenticated, user, isLoading } = useAuth();
+  const [iin, setIin] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  // Redirect if already authenticated
+  // Карта для преобразования ролей
+  const roleMap: { [key: string]: string } = {
+    "Администратор": "admin",
+    "Школа": "school",
+    "Район": "district",
+    "Мобильная группа": "mobile",
+    "Полиция": "police",
+    "Здравоохранение": "health",
+    "Регион": "regional",
+    "Социальная служба": "social",
+  };
+
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push("/dashboard")
+    console.log("LoginPage: isAuthenticated:", isAuthenticated, "user:", user);
+    if (!isLoading && isAuthenticated && user?.role) {
+      const role = roleMap[user.role] || user.role.toLowerCase();
+      router.push(`/dashboard?role=${role}`);
     }
-  }, [isAuthenticated, router])
+  }, [isAuthenticated, user, isLoading, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError("")
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    // Валидация ИИН
+    if (!/^\d{12}$/.test(iin)) {
+      setError("ИИН должен состоять из 12 цифр");
+      setLoading(false);
+      return;
+    }
 
     try {
-      console.log("Attempting login with:", username, password)
-      await login(username, password)
-      console.log("Login function completed")
-      // Redirect is handled in the auth context
+      console.log("Attempting login with:", iin);
+      const response = await login(iin, password);
+      const userData = response?.user;
+      if (userData?.role) {
+        const role = roleMap[userData.role] || userData.role.toLowerCase();
+        router.push(`/dashboard?role=${role}`);
+      } else {
+        throw new Error("Роль пользователя не определена");
+      }
     } catch (error) {
-      console.error("Login error:", error)
-      setError(error instanceof Error ? error.message : "Неверное имя пользователя или пароль")
+      console.error("Login error:", error);
+      setError(error instanceof Error ? error.message : "Неверный ИИН или пароль");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800 py-12 px-4 sm:px-6 lg:px-8">
@@ -88,14 +112,14 @@ export default function LoginPage() {
           <form onSubmit={handleLogin}>
             <div className="grid gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="username">Имя пользователя</Label>
+                <Label htmlFor="iin">ИИН</Label>
                 <Input
-                  id="username"
+                  id="iin"
                   type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  value={iin}
+                  onChange={(e) => setIin(e.target.value)}
                   required
-                  autoComplete="username"
+                  autoComplete="off"
                   className="transition-all duration-200 focus:ring-2 focus:ring-primary"
                 />
               </div>
@@ -129,13 +153,11 @@ export default function LoginPage() {
           </form>
         </CardContent>
         <CardFooter className="flex flex-col">
-          <div className="text-sm text-center text-muted-foreground mt-2">Для демонстрации используйте:</div>
-          <div className="text-xs text-center text-muted-foreground">
-            admin/admin, school/school, district/district, mobile/mobile, police/police, health/health,
-            regional/regional
+          <div className="text-sm text-center text-muted-foreground mt-2">
+            Свяжитесь с администратором для получения учетных данных
           </div>
         </CardFooter>
       </Card>
     </div>
-  )
+  );
 }

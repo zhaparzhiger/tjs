@@ -39,7 +39,7 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
     address: family.address || "",
     registrationAddress: family.registrationAddress || family.address || "",
     status: family.status || "ТЖС",
-    statusReason: family.statusReason || "",
+    settingReason: family.settingReason || "",
     tzhsReason: family.tzhsReason || "",
     nbReason: family.nbReason || "",
     inspectionStatus: family.inspectionStatus || "not-inspected",
@@ -57,10 +57,20 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
     isActive: family.isActive !== false,
     inactiveReason: family.inactiveReason || "",
     notes: family.notes || "",
+      region: family.region || "",
+      district: family.district || "",
+      city: family.city || "",
+          riskLevel: family.riskLevel || "",
+          riskFactors: family.riskFactors || "",
+          socialBenefits: family.socialBenefits || "",
+          contactPhone: family.contactPhone || "",
+          contactEmail: family.contactEmail || "",
+            hasInterpreterNeeded: family.hasInterpreterNeeded || false,
   })
 
   // Fetch family members to calculate children count
   useEffect(() => {
+      console.log("Family bro", family)
     if (!family.id) {
       toast({
         title: "Ошибка",
@@ -90,7 +100,6 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
             member.status === "Дошкольник"
         ).length
         setChildrenCount(children)
-        setFormData((prev) => ({ ...prev, children }))
       } catch (error: any) {
         console.error("Error fetching family members:", error)
         toast({
@@ -129,9 +138,10 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
         address: formData.address,
         registrationAddress: formData.registrationAddress,
         status: formData.status,
-        statusReason: formData.statusReason,
+        settingReason: formData.settingReason,
         tzhsReason: formData.tzhsReason,
         nbReason: formData.nbReason,
+        children: formData.children,
         inspectionStatus: formData.inspectionStatus,
         familyType: formData.familyType,
         housingType: formData.housingType,
@@ -146,6 +156,15 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
         isActive: formData.isActive,
         inactiveReason: formData.inactiveReason,
         notes: formData.notes,
+          region: formData.region || "",
+          district: formData.district || "",
+          city: formData.city || "",
+           riskLevel: formData.riskLevel || "",
+          riskFactors: formData.riskFactors || "",
+          socialBenefits: formData.socialBenefits || "",
+          contactPhone: formData.contactPhone || "",
+          contactEmail: formData.contactEmail || "",
+            hasInterpreterNeeded: formData.hasInterpreterNeeded || false,
       }
 
       const response = await fetch(`http://localhost:5555/api/families/${family.id}`, {
@@ -163,33 +182,46 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
       }
 
       const updated = await response.json()
+      const updatedDestructured = updated.family
+      console.log(updatedDestructured)
       const updatedFamily: Family = {
-        id: updated.id,
-        name: updated.familyName,
-        iin: updated.caseNumber,
-        address: updated.address,
-        registrationAddress: updated.registrationAddress || updated.address,
-        status: updated.status,
-        statusReason: updated.statusReason || "",
-        tzhsReason: updated.tzhsReason || "",
-        nbReason: updated.nbReason || "",
-        inspectionStatus: updated.inspectionStatus || "not-inspected",
-        familyType: updated.familyType || "full",
-        children: childrenCount,
-        housingType: updated.housingType || "apartment",
-        employment: updated.employment || "employed-official",
-        workplace: updated.workplace || "",
-        familyIncome: updated.familyIncome || "",
-        needsSupport: updated.needsSupport || false,
-        needsEducation: updated.needsEducation || false,
-        needsHealth: updated.needsHealth || false,
-        needsPolice: updated.needsPolice || false,
-        hasDisability: updated.hasDisability || false,
-        isActive: updated.isActive !== false,
-        inactiveReason: updated.inactiveReason || "",
-        notes: updated.notes || "",
-        lastUpdate: new Date(updated.lastUpdate).toLocaleDateString(),
+        id: updatedDestructured.id,
+        name: updatedDestructured.familyName,
+        iin: updatedDestructured.caseNumber,
+        address: updatedDestructured.address,
+        registrationAddress: updatedDestructured.registrationAddress || updatedDestructured.address,
+        status: updatedDestructured.status,
+        settingReason: updatedDestructured.settingReason || "",
+        tzhsReason: updatedDestructured.tzhsReason || "",
+        nbReason: updatedDestructured.nbReason || "",
+        inspectionStatus: updatedDestructured.inspectionStatus || "not-inspected",
+        familyType: updatedDestructured.familyType || "full",
+        children: updatedDestructured.children,
+        housingType: updatedDestructured.housingType || "apartment",
+        employment: updatedDestructured.employment || "employed-official",
+        workplace: updatedDestructured.workplace || "",
+        familyIncome: updatedDestructured.familyIncome || "",
+        needsSupport: updatedDestructured.needsSupport || false,
+        needsEducation: updatedDestructured.needsEducation || false,
+        needsHealth: updatedDestructured.needsHealth || false,
+        needsPolice: updatedDestructured.needsPolice || false,
+        hasDisability: updatedDestructured.hasDisability || false,
+        isActive: updatedDestructured.isActive !== false,
+        inactiveReason: updatedDestructured.inactiveReason || "",
+        notes: updatedDestructured.notes || "",
+        lastUpdate: new Date(updatedDestructured.lastUpdate).toLocaleDateString(),
+          region: updatedDestructured.region || "",
+          district: updatedDestructured.district || "",
+          city: updatedDestructured.city || "",
+           riskLevel: updatedDestructured.riskLevel || "",
+          riskFactors: updatedDestructured.riskFactors || "",
+          socialBenefits: updatedDestructured.socialBenefits || "",
+          contactPhone: updatedDestructured.contactPhone || "",
+          contactEmail: updatedDestructured.contactEmail || "",
+            hasInterpreterNeeded: updatedDestructured.hasInterpreterNeeded || false,
       }
+      
+      console.log(updatedFamily)
 
       setIsEditing(false)
       toast({
@@ -297,16 +329,59 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
               readOnly={!isEditing}
             />
           </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="region">Регион</Label>
+                    <Input
+                      id="region"
+                      name="region"
+                      value={formData.region}
+                      onChange={handleInputChange}
+                      readOnly={!isEditing}
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="district">Район</Label>
+                    <Input
+                      id="district"
+                      name="district"
+                      value={formData.district}
+                      readOnly={!isEditing}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="city">Город</Label>
+                    <Input
+                      id="city"
+                      name="city"
+                      value={formData.city}
+                      readOnly={!isEditing}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="status">Статус</Label>
               {isEditing ? (
                 <Select
-                  value={formData.status?.includes("Н/Б") ? "both" : formData.status === "ТЖС" ? "tzhs" : "nb"}
-                  onValueChange={(value) =>
-                    handleSelectChange("status", value === "both" ? "ТЖС, Н/Б" : value === "tzhs" ? "ТЖС" : "Неблагополучная")
-                  }
+                  value={
+                      formData.status === "ТЖС, Неблагополучная" ? "both" :
+                      formData.status === "ТЖС" ? "tzhs" :
+                      formData.status === "Неблагополучная" ? "nb" : "tzhs" // Значение по умолчанию
+                    }
+                    onValueChange={(value) =>
+                      handleSelectChange(
+                        "status",
+                        value === "both" ? "ТЖС, Неблагополучная" :
+                        value === "tzhs" ? "ТЖС" :
+                        "Неблагополучная"
+                      )
+                    }
                 >
                   <SelectTrigger id="status">
                     <SelectValue placeholder="Выберите статус" />
@@ -323,10 +398,10 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="statusReason">Причина постановки</Label>
+              <Label htmlFor="settingReason">Причина постановки</Label>
               <Input
-                id="statusReason"
-                value={formData.statusReason || ""}
+                id="settingReason"
+                value={formData.settingReason || ""}
                 onChange={handleInputChange}
                 readOnly={!isEditing}
                 placeholder="Укажите причину постановки на учет"
@@ -400,7 +475,7 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
             </div>
           )}
 
-          {formData.status?.includes("Н/Б") && (
+          {formData.status?.includes("Неблагополучная") && (
             <div className="grid gap-2">
               <Label htmlFor="nbReason">Причина неблагополучия</Label>
               {isEditing ? (
@@ -499,9 +574,10 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
               <Input
                 id="children"
                 type="number"
-                value={childrenCount}
+                value={formData.children}
                 onChange={handleNumberChange}
                 readOnly={!isEditing}
+                min={0}
               />
             </div>
 
@@ -549,6 +625,23 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
               )}
             </div>
           </div>
+          
+          <div className="grid gap-2">
+                    <Label htmlFor="riskLevel">Уровень риска</Label>
+                    <Select
+                      value={formData.riskLevel}
+                      onValueChange={(value) => handleSelectChange("riskLevel", value)}
+                    >
+                      <SelectTrigger id="riskLevel">
+                        <SelectValue placeholder="Выберите уровень" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Низкий</SelectItem>
+                        <SelectItem value="medium">Средний</SelectItem>
+                        <SelectItem value="high">Высокий</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="grid gap-2">
@@ -599,6 +692,52 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
               />
             </div>
           </div>
+          
+          <div className="grid gap-2">
+                  <Label htmlFor="riskFactors">Факторы риска (через запятую)</Label>
+                  <Input
+                    id="riskFactors"
+                    name="riskFactors"
+                    value={formData.riskFactors}
+                    readOnly={!isEditing}
+                    onChange={(e) => handleArrayInputChange("riskFactors", e.target.value)}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="socialBenefits">Социальные выплаты (через запятую)</Label>
+                  <Input
+                    id="socialBenefits"
+                    name="socialBenefits"
+                    value={formData.socialBenefits}
+                    readOnly={!isEditing}
+                    onChange={(e) => handleArrayInputChange("socialBenefits", e.target.value)}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="contactPhone">Контактный телефон</Label>
+                    <Input
+                      id="contactPhone"
+                      name="contactPhone"
+                      value={formData.contactPhone}
+                        readOnly={!isEditing}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="contactEmail">Контактный email</Label>
+                    <Input
+                      id="contactEmail"
+                      name="contactEmail"
+                      type="email"
+                      value={formData.contactEmail}
+                        readOnly={!isEditing}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                </div>
 
           <div className="grid gap-2">
             <Label htmlFor="familyIncome">Доходы семьи (тыс. тенге в месяц)</Label>
@@ -721,6 +860,17 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
                   Есть члены семьи с инвалидностью
                 </Label>
               </div>
+              <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="hasInterpreterNeeded"
+                        checked={formData.hasInterpreterNeeded}
+                        onCheckedChange={(checked) => handleCheckboxChange("hasInterpreterNeeded", checked as boolean)}
+                        disabled={!isEditing}
+                      />
+                      <Label htmlFor="hasInterpreterNeeded" className="font-normal">
+                        Требуется переводчик
+                      </Label>
+                    </div>
             </div>
           </div>
 

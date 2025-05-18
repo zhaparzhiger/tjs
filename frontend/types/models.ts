@@ -2,19 +2,19 @@
 
 // Семья
 export interface Family {
-  id: number
+  id: string
   name: string
   iin: string
   address: string
   registrationAddress?: string
   status: string
   relationship: string
-  statusReason?: string
+  settingReason?: string
   tzhsReason?: string
   nbReason?: string
   inspectionStatus?: string
   familyType?: string
-  children: number
+  children?: number
   housingType?: string
   employment?: string
   workplace?: string
@@ -54,7 +54,7 @@ export interface Family {
 
 // Член семьи
 export interface FamilyMember {
-  id: number
+  id: string
   familyId: number
   name: string
   iin: string
@@ -90,7 +90,7 @@ export interface FamilyMember {
 
 // Документ члена семьи
 export interface MemberDocument {
-  id: number
+  id: string
   memberId: number
   type: string
   name: string
@@ -102,7 +102,7 @@ export interface MemberDocument {
 
 // Мера поддержки
 export interface SupportMeasure {
-  id: number
+  id: string
   familyId: number
   category: string
   type: string
@@ -118,7 +118,7 @@ export interface SupportMeasure {
 
 // Документ
 export interface Document {
-  id: number
+  id: string
   familyId?: number
   memberId?: number
   name: string
@@ -135,7 +135,7 @@ export interface Document {
 
 // Запись в истории
 export interface HistoryRecord {
-  id: number
+  id: string
   familyId: number
   memberId?: number
   action: string
@@ -147,7 +147,7 @@ export interface HistoryRecord {
 
 // Пользователь
 export interface User {
-  id: number
+  id: string
   name: string
   email: string
   role: UserRole
@@ -162,7 +162,7 @@ export type UserRole = "admin" | "district" | "school" | "social" | "police" | "
 
 // Отчет
 export interface Report {
-  id: number
+  id: string
   name: string
   description: string
   type: string
@@ -173,7 +173,7 @@ export interface Report {
 
 // Уведомление
 export interface Notification {
-  id: number
+  id: string
   title: string
   description: string
   type: string

@@ -41,7 +41,7 @@ const getFamilyMemberById = async (req, res) => {
             createdBy: {
               select: {
                 id: true,
-                username: true,
+                iin: true,
                 fullName: true,
               },
             },
@@ -52,7 +52,7 @@ const getFamilyMemberById = async (req, res) => {
             uploadedBy: {
               select: {
                 id: true,
-                username: true,
+                iin: true,
                 fullName: true,
               },
             },
@@ -232,6 +232,9 @@ async function createFamilyMember(req, res) {
 const updateFamilyMember = async (req, res) => {
   try {
     const { id } = req.params
+        
+    console.log("Id of the family is", id)
+    
     const {
       firstName,
       lastName,
