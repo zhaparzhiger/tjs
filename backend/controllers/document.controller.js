@@ -107,12 +107,7 @@ const getFamilyDocuments = async (req, res) => {
       return res.status(404).json({ message: "Family not found" })
     }
 
-    if (req.familyFilter) {
-      const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => family[key] === value)
-      if (!hasAccess) {
-        return res.status(403).json({ message: "You do not have access to this family" })
-      }
-    }
+
 
     const documents = await prisma.document.findMany({
       where: { familyId },
@@ -206,12 +201,7 @@ const uploadDocument = async (req, res) => {
         if (!family) {
           return res.status(404).json({ message: "Family not found" })
         }
-        if (req.familyFilter) {
-          const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => family[key] === value)
-          if (!hasAccess) {
-            return res.status(403).json({ message: "You do not have access to this family" })
-          }
-        }
+      
       }
 
       if (memberId) {
@@ -222,12 +212,7 @@ const uploadDocument = async (req, res) => {
         if (!member) {
           return res.status(404).json({ message: "Family member not found" })
         }
-        if (req.familyFilter) {
-          const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => member.family[key] === value)
-          if (!hasAccess) {
-            return res.status(403).json({ message: "You do not have access to this family member" })
-          }
-        }
+       
       }
 
       if (supportId) {

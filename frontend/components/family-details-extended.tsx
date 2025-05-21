@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -57,20 +59,19 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
     isActive: family.isActive !== false,
     inactiveReason: family.inactiveReason || "",
     notes: family.notes || "",
-      region: family.region || "",
-      district: family.district || "",
-      city: family.city || "",
-          riskLevel: family.riskLevel || "",
-          riskFactors: family.riskFactors || "",
-          socialBenefits: family.socialBenefits || "",
-          contactPhone: family.contactPhone || "",
-          contactEmail: family.contactEmail || "",
-            hasInterpreterNeeded: family.hasInterpreterNeeded || false,
+    region: family.region || "",
+    district: family.district || "",
+    city: family.city || "",
+    riskLevel: family.riskLevel || "",
+    riskFactors: family.riskFactors || "",
+    socialBenefits: family.socialBenefits || "",
+    contactPhone: family.contactPhone || "",
+    contactEmail: family.contactEmail || "",
+    hasInterpreterNeeded: family.hasInterpreterNeeded || false,
   })
 
   // Fetch family members to calculate children count
   useEffect(() => {
-      console.log("Family bro", family)
     if (!family.id) {
       toast({
         title: "Ошибка",
@@ -97,7 +98,7 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
             member.relationship === "son" ||
             member.relationship === "daughter" ||
             member.status === "Школьник" ||
-            member.status === "Дошкольник"
+            member.status === "Дошкольник",
         ).length
         setChildrenCount(children)
       } catch (error: any) {
@@ -130,6 +131,10 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
     setFormData((prev) => ({ ...prev, [id]: checked }))
   }
 
+  const handleArrayInputChange = (id: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [id]: value }))
+  }
+
   const handleSave = async () => {
     try {
       const payload = {
@@ -156,15 +161,15 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
         isActive: formData.isActive,
         inactiveReason: formData.inactiveReason,
         notes: formData.notes,
-          region: formData.region || "",
-          district: formData.district || "",
-          city: formData.city || "",
-           riskLevel: formData.riskLevel || "",
-          riskFactors: formData.riskFactors || "",
-          socialBenefits: formData.socialBenefits || "",
-          contactPhone: formData.contactPhone || "",
-          contactEmail: formData.contactEmail || "",
-            hasInterpreterNeeded: formData.hasInterpreterNeeded || false,
+        region: formData.region || "",
+        district: formData.district || "",
+        city: formData.city || "",
+        riskLevel: formData.riskLevel || "",
+        riskFactors: formData.riskFactors || "",
+        socialBenefits: formData.socialBenefits || "",
+        contactPhone: formData.contactPhone || "",
+        contactEmail: formData.contactEmail || "",
+        hasInterpreterNeeded: formData.hasInterpreterNeeded || false,
       }
 
       const response = await fetch(`http://localhost:5555/api/families/${family.id}`, {
@@ -210,17 +215,17 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
         inactiveReason: updatedDestructured.inactiveReason || "",
         notes: updatedDestructured.notes || "",
         lastUpdate: new Date(updatedDestructured.lastUpdate).toLocaleDateString(),
-          region: updatedDestructured.region || "",
-          district: updatedDestructured.district || "",
-          city: updatedDestructured.city || "",
-           riskLevel: updatedDestructured.riskLevel || "",
-          riskFactors: updatedDestructured.riskFactors || "",
-          socialBenefits: updatedDestructured.socialBenefits || "",
-          contactPhone: updatedDestructured.contactPhone || "",
-          contactEmail: updatedDestructured.contactEmail || "",
-            hasInterpreterNeeded: updatedDestructured.hasInterpreterNeeded || false,
+        region: updatedDestructured.region || "",
+        district: updatedDestructured.district || "",
+        city: updatedDestructured.city || "",
+        riskLevel: updatedDestructured.riskLevel || "",
+        riskFactors: updatedDestructured.riskFactors || "",
+        socialBenefits: updatedDestructured.socialBenefits || "",
+        contactPhone: updatedDestructured.contactPhone || "",
+        contactEmail: updatedDestructured.contactEmail || "",
+        hasInterpreterNeeded: updatedDestructured.hasInterpreterNeeded || false,
       }
-      
+
       console.log(updatedFamily)
 
       setIsEditing(false)
@@ -260,8 +265,8 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
 
   return (
     <div className="flex-1 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {formData.isActive ? (
             <Badge className="bg-green-600">Активна</Badge>
           ) : (
@@ -270,15 +275,22 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
           {formData.inspectionStatus && getInspectionStatusBadge(formData.inspectionStatus)}
         </div>
         {!isEditing ? (
-          <Button variant="outline" onClick={() => setIsEditing(true)} disabled={!canEditFamily}>
+          <Button
+            variant="outline"
+            onClick={() => setIsEditing(true)}
+            disabled={!canEditFamily}
+            className="w-full xs:w-auto"
+          >
             Редактировать
           </Button>
         ) : (
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setIsEditing(false)}>
+          <div className="flex flex-col xs:flex-row gap-2 w-full xs:w-auto">
+            <Button variant="outline" onClick={() => setIsEditing(false)} className="w-full xs:w-auto">
               Отмена
             </Button>
-            <Button onClick={handleSave}>Сохранить</Button>
+            <Button onClick={handleSave} className="w-full xs:w-auto">
+              Сохранить
+            </Button>
           </div>
         )}
       </div>
@@ -292,32 +304,17 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="name">ФИО родителя</Label>
-              <Input
-                id="name"
-                value={formData.name || ""}
-                onChange={handleInputChange}
-                readOnly={!isEditing}
-              />
+              <Input id="name" value={formData.name || ""} onChange={handleInputChange} readOnly={!isEditing} />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="iin">ИИН</Label>
-              <Input
-                id="iin"
-                value={formData.iin || ""}
-                onChange={handleInputChange}
-                readOnly={!isEditing}
-              />
+              <Input id="iin" value={formData.iin || ""} onChange={handleInputChange} readOnly={!isEditing} />
             </div>
           </div>
 
           <div className="grid gap-2">
             <Label htmlFor="address">Адрес проживания</Label>
-            <Textarea
-              id="address"
-              value={formData.address || ""}
-              onChange={handleInputChange}
-              readOnly={!isEditing}
-            />
+            <Textarea id="address" value={formData.address || ""} onChange={handleInputChange} readOnly={!isEditing} />
           </div>
 
           <div className="grid gap-2">
@@ -329,40 +326,34 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
               readOnly={!isEditing}
             />
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="region">Регион</Label>
-                    <Input
-                      id="region"
-                      name="region"
-                      value={formData.region}
-                      onChange={handleInputChange}
-                      readOnly={!isEditing}
-                      required
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="district">Район</Label>
-                    <Input
-                      id="district"
-                      name="district"
-                      value={formData.district}
-                      readOnly={!isEditing}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="city">Город</Label>
-                    <Input
-                      id="city"
-                      name="city"
-                      value={formData.city}
-                      readOnly={!isEditing}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                </div>
+            <div className="grid gap-2">
+              <Label htmlFor="region">Регион</Label>
+              <Input
+                id="region"
+                name="region"
+                value={formData.region}
+                onChange={handleInputChange}
+                readOnly={!isEditing}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="district">Район</Label>
+              <Input
+                id="district"
+                name="district"
+                value={formData.district}
+                readOnly={!isEditing}
+                onChange={handleInputChange}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="city">Город</Label>
+              <Input id="city" name="city" value={formData.city} readOnly={!isEditing} onChange={handleInputChange} />
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="grid gap-2">
@@ -370,18 +361,20 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
               {isEditing ? (
                 <Select
                   value={
-                      formData.status === "ТЖС, Неблагополучная" ? "both" :
-                      formData.status === "ТЖС" ? "tzhs" :
-                      formData.status === "Неблагополучная" ? "nb" : "tzhs" // Значение по умолчанию
-                    }
-                    onValueChange={(value) =>
-                      handleSelectChange(
-                        "status",
-                        value === "both" ? "ТЖС, Неблагополучная" :
-                        value === "tzhs" ? "ТЖС" :
-                        "Неблагополучная"
-                      )
-                    }
+                    formData.status === "ТЖС, Неблагополучная"
+                      ? "both"
+                      : formData.status === "ТЖС"
+                        ? "tzhs"
+                        : formData.status === "Неблагополучная"
+                          ? "nb"
+                          : "tzhs" // Значение по умолчанию
+                  }
+                  onValueChange={(value) =>
+                    handleSelectChange(
+                      "status",
+                      value === "both" ? "ТЖС, Неблагополучная" : value === "tzhs" ? "ТЖС" : "Неблагополучная",
+                    )
+                  }
                 >
                   <SelectTrigger id="status">
                     <SelectValue placeholder="Выберите статус" />
@@ -458,16 +451,16 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
                     formData.tzhsReason === "low-income"
                       ? "Малообеспеченность"
                       : formData.tzhsReason === "many-children"
-                      ? "Многодетность"
-                      : formData.tzhsReason === "single-parent"
-                      ? "Неполная семья"
-                      : formData.tzhsReason === "disability"
-                      ? "Инвалидность"
-                      : formData.tzhsReason === "orphan"
-                      ? "Сироты"
-                      : formData.tzhsReason === "other"
-                      ? "Другое"
-                      : formData.tzhsReason || ""
+                        ? "Многодетность"
+                        : formData.tzhsReason === "single-parent"
+                          ? "Неполная семья"
+                          : formData.tzhsReason === "disability"
+                            ? "Инвалидность"
+                            : formData.tzhsReason === "orphan"
+                              ? "Сироты"
+                              : formData.tzhsReason === "other"
+                                ? "Другое"
+                                : formData.tzhsReason || ""
                   }
                   readOnly
                 />
@@ -501,16 +494,16 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
                     formData.nbReason === "alcohol"
                       ? "Алкоголизм"
                       : formData.nbReason === "drugs"
-                      ? "Наркомания"
-                      : formData.nbReason === "violence"
-                      ? "Насилие в семье"
-                      : formData.nbReason === "neglect"
-                      ? "Пренебрежение нуждами детей"
-                      : formData.nbReason === "criminal"
-                      ? "Криминальное поведение"
-                      : formData.nbReason === "other"
-                      ? "Другое"
-                      : formData.nbReason || ""
+                        ? "Наркомания"
+                        : formData.nbReason === "violence"
+                          ? "Насилие в семье"
+                          : formData.nbReason === "neglect"
+                            ? "Пренебрежение нуждами детей"
+                            : formData.nbReason === "criminal"
+                              ? "Криминальное поведение"
+                              : formData.nbReason === "other"
+                                ? "Другое"
+                                : formData.nbReason || ""
                   }
                   readOnly
                 />
@@ -547,22 +540,22 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
                     formData.familyType === "full"
                       ? "Полная"
                       : formData.familyType === "single-mother"
-                      ? "Одинокая мать (форма 4)"
-                      : formData.familyType === "widow"
-                      ? "Вдова"
-                      : formData.familyType === "widower"
-                      ? "Вдовец"
-                      : formData.familyType === "divorced"
-                      ? "В разводе"
-                      : formData.familyType === "stepparent"
-                      ? "С отчимом/мачехой"
-                      : formData.familyType === "with-cohabitant"
-                      ? "С сожителем/сожительницей"
-                      : formData.familyType === "with-grandparents"
-                      ? "С бабушкой и дедушкой"
-                      : formData.familyType === "guardian"
-                      ? "Опекун"
-                      : formData.familyType || "Полная"
+                        ? "Одинокая мать (форма 4)"
+                        : formData.familyType === "widow"
+                          ? "Вдова"
+                          : formData.familyType === "widower"
+                            ? "Вдовец"
+                            : formData.familyType === "divorced"
+                              ? "В разводе"
+                              : formData.familyType === "stepparent"
+                                ? "С отчимом/мачехой"
+                                : formData.familyType === "with-cohabitant"
+                                  ? "С сожителем/сожительницей"
+                                  : formData.familyType === "with-grandparents"
+                                    ? "С бабушкой и дедушкой"
+                                    : formData.familyType === "guardian"
+                                      ? "Опекун"
+                                      : formData.familyType || "Полная"
                   }
                   readOnly
                 />
@@ -607,41 +600,53 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
                     formData.housingType === "apartment"
                       ? "Квартира"
                       : formData.housingType === "house"
-                      ? "Частный дом"
-                      : formData.housingType === "dormitory"
-                      ? "Общежитие"
-                      : formData.housingType === "rental"
-                      ? "Арендное жилье"
-                      : formData.housingType === "relatives"
-                      ? "У родственников"
-                      : formData.housingType === "social"
-                      ? "Социальное жилье"
-                      : formData.housingType === "other"
-                      ? "Другое"
-                      : formData.housingType || ""
+                        ? "Частный дом"
+                        : formData.housingType === "dormitory"
+                          ? "Общежитие"
+                          : formData.housingType === "rental"
+                            ? "Арендное жилье"
+                            : formData.housingType === "relatives"
+                              ? "У родственников"
+                              : formData.housingType === "social"
+                                ? "Социальное жилье"
+                                : formData.housingType === "other"
+                                  ? "Другое"
+                                  : formData.housingType || ""
                   }
                   readOnly
                 />
               )}
             </div>
           </div>
-          
+
           <div className="grid gap-2">
-                    <Label htmlFor="riskLevel">Уровень риска</Label>
-                    <Select
-                      value={formData.riskLevel}
-                      onValueChange={(value) => handleSelectChange("riskLevel", value)}
-                    >
-                      <SelectTrigger id="riskLevel">
-                        <SelectValue placeholder="Выберите уровень" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="low">Низкий</SelectItem>
-                        <SelectItem value="medium">Средний</SelectItem>
-                        <SelectItem value="high">Высокий</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+            <Label htmlFor="riskLevel">Уровень риска</Label>
+            {isEditing ? (
+              <Select value={formData.riskLevel} onValueChange={(value) => handleSelectChange("riskLevel", value)}>
+                <SelectTrigger id="riskLevel">
+                  <SelectValue placeholder="Выберите уровень" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Низкий</SelectItem>
+                  <SelectItem value="medium">Средний</SelectItem>
+                  <SelectItem value="high">Высокий</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                value={
+                  formData.riskLevel === "low"
+                    ? "Низкий"
+                    : formData.riskLevel === "medium"
+                      ? "Средний"
+                      : formData.riskLevel === "high"
+                        ? "Высокий"
+                        : formData.riskLevel || ""
+                }
+                readOnly
+              />
+            )}
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="grid gap-2">
@@ -668,14 +673,14 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
                     formData.employment === "employed-official"
                       ? "Работает официально"
                       : formData.employment === "employed-unofficial"
-                      ? "Работает неофициально"
-                      : formData.employment === "self-employed"
-                      ? "Самозанятый"
-                      : formData.employment === "unemployed"
-                      ? "Безработный"
-                      : formData.employment === "part-time"
-                      ? "Частичная занятость"
-                      : formData.employment || ""
+                        ? "Работает неофициально"
+                        : formData.employment === "self-employed"
+                          ? "Самозанятый"
+                          : formData.employment === "unemployed"
+                            ? "Безработный"
+                            : formData.employment === "part-time"
+                              ? "Частичная занятость"
+                              : formData.employment || ""
                   }
                   readOnly
                 />
@@ -692,52 +697,52 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
               />
             </div>
           </div>
-          
+
           <div className="grid gap-2">
-                  <Label htmlFor="riskFactors">Факторы риска (через запятую)</Label>
-                  <Input
-                    id="riskFactors"
-                    name="riskFactors"
-                    value={formData.riskFactors}
-                    readOnly={!isEditing}
-                    onChange={(e) => handleArrayInputChange("riskFactors", e.target.value)}
-                  />
-                </div>
+            <Label htmlFor="riskFactors">Факторы риска (через запятую)</Label>
+            <Input
+              id="riskFactors"
+              name="riskFactors"
+              value={formData.riskFactors}
+              readOnly={!isEditing}
+              onChange={(e) => handleArrayInputChange("riskFactors", e.target.value)}
+            />
+          </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="socialBenefits">Социальные выплаты (через запятую)</Label>
-                  <Input
-                    id="socialBenefits"
-                    name="socialBenefits"
-                    value={formData.socialBenefits}
-                    readOnly={!isEditing}
-                    onChange={(e) => handleArrayInputChange("socialBenefits", e.target.value)}
-                  />
-                </div>
+          <div className="grid gap-2">
+            <Label htmlFor="socialBenefits">Социальные выплаты (через запятую)</Label>
+            <Input
+              id="socialBenefits"
+              name="socialBenefits"
+              value={formData.socialBenefits}
+              readOnly={!isEditing}
+              onChange={(e) => handleArrayInputChange("socialBenefits", e.target.value)}
+            />
+          </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="contactPhone">Контактный телефон</Label>
-                    <Input
-                      id="contactPhone"
-                      name="contactPhone"
-                      value={formData.contactPhone}
-                        readOnly={!isEditing}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="contactEmail">Контактный email</Label>
-                    <Input
-                      id="contactEmail"
-                      name="contactEmail"
-                      type="email"
-                      value={formData.contactEmail}
-                        readOnly={!isEditing}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="contactPhone">Контактный телефон</Label>
+              <Input
+                id="contactPhone"
+                name="contactPhone"
+                value={formData.contactPhone}
+                readOnly={!isEditing}
+                onChange={handleInputChange}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="contactEmail">Контактный email</Label>
+              <Input
+                id="contactEmail"
+                name="contactEmail"
+                type="email"
+                value={formData.contactEmail}
+                readOnly={!isEditing}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
 
           <div className="grid gap-2">
             <Label htmlFor="familyIncome">Доходы семьи (тыс. тенге в месяц)</Label>
@@ -775,14 +780,14 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
                     formData.inactiveReason === "moved"
                       ? "Переезд"
                       : formData.inactiveReason === "improved"
-                      ? "Улучшение ситуации"
-                      : formData.inactiveReason === "children-grown"
-                      ? "Дети выросли"
-                      : formData.inactiveReason === "death"
-                      ? "Смерть"
-                      : formData.inactiveReason === "other"
-                      ? "Другое"
-                      : formData.inactiveReason || ""
+                        ? "Улучшение ситуации"
+                        : formData.inactiveReason === "children-grown"
+                          ? "Дети выросли"
+                          : formData.inactiveReason === "death"
+                            ? "Смерть"
+                            : formData.inactiveReason === "other"
+                              ? "Другое"
+                              : formData.inactiveReason || ""
                   }
                   readOnly
                 />
@@ -861,27 +866,22 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="hasInterpreterNeeded"
-                        checked={formData.hasInterpreterNeeded}
-                        onCheckedChange={(checked) => handleCheckboxChange("hasInterpreterNeeded", checked as boolean)}
-                        disabled={!isEditing}
-                      />
-                      <Label htmlFor="hasInterpreterNeeded" className="font-normal">
-                        Требуется переводчик
-                      </Label>
-                    </div>
+                <Checkbox
+                  id="hasInterpreterNeeded"
+                  checked={formData.hasInterpreterNeeded}
+                  onCheckedChange={(checked) => handleCheckboxChange("hasInterpreterNeeded", checked as boolean)}
+                  disabled={!isEditing}
+                />
+                <Label htmlFor="hasInterpreterNeeded" className="font-normal">
+                  Требуется переводчик
+                </Label>
+              </div>
             </div>
           </div>
 
           <div className="grid gap-2">
             <Label htmlFor="notes">Примечания</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes || ""}
-              onChange={handleInputChange}
-              readOnly={!isEditing}
-            />
+            <Textarea id="notes" value={formData.notes || ""} onChange={handleInputChange} readOnly={!isEditing} />
           </div>
         </CardContent>
       </Card>

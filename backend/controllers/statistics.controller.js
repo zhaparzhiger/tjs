@@ -28,34 +28,82 @@ const getFamilyStatsByRegion = async (req, res) => {
     res.status(500).json({ message: "Server error" })
   }
 }
-
-// Get family statistics by district
-const getFamilyStatsByDistrict = async (req, res) => {
+const getFamilyTypeStats = async (req, res) => {
   try {
-    // Apply filter based on user's access level (set by middleware)
-    const filter = req.familyFilter || {}
-
-    // Group by district and count
-    const districtStats = await prisma.family.groupBy({
-      by: ["district"],
-      where: filter,
+    // Get family types statistics
+    const familyTypes = await prisma.family.groupBy({
+      by: ["familyType"],
       _count: {
-        _all: true,
+        id: true,
       },
+      where: req.familyFilter || {}, // Apply access filters if present
     })
 
-    // Format the response
-    const formattedStats = districtStats.map((stat) => ({
-      district: stat.district,
-      count: stat._count._all,
+    // Transform the data for the frontend
+    const result = familyTypes.map((item) => ({
+      type: item.familyType || "Не указан",
+      count: item._count.id,
     }))
 
-    res.status(200).json(formattedStats)
+    res.status(200).json(result)
   } catch (error) {
-    console.error("Error in getFamilyStatsByDistrict controller:", error)
-    res.status(500).json({ message: "Server error" })
+    console.error("Error fetching family type statistics:", error)
+    res.status(500).json({ message: "Internal server error" })
   }
 }
+
+// Add this function to get accurate children count by district
+const getFamilyStatsByDistrict = async (req, res) => {
+  try {
+    // Get families grouped by district
+    const districtStats = await prisma.family.groupBy({
+      by: ["district"],
+      _count: {
+        id: true,
+      },
+      where: req.familyFilter || {}, // Apply access filters if present
+    })
+
+    // For each district, count the children
+    const result = await Promise.all(
+      districtStats.map(async (district) => {
+        // Get all families in this district
+        const families = await prisma.family.findMany({
+          where: {
+            district: district.district,
+            ...req.familyFilter,
+          },
+          select: {
+            id: true,
+          },
+        })
+
+        const familyIds = families.map((f) => f.id)
+
+        // Count children in these families (members with status Школьник, Дошкольник, or Студент)
+        const childrenCount = await prisma.familyMember.count({
+          where: {
+            familyId: { in: familyIds },
+            status: { in: ["Школьник", "Дошкольник", "Студент"] },
+          },
+        })
+
+        return {
+          district: district.district || "Не указан",
+          count: district._count.id,
+          children: childrenCount,
+        }
+      }),
+    )
+
+    res.status(200).json(result)
+  } catch (error) {
+    console.error("Error fetching district statistics:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
+// Get family statistics by district
+
 
 // Get family statistics by risk level
 const getFamilyStatsByRiskLevel = async (req, res) => {
@@ -368,11 +416,12 @@ const getDashboardStats = async (req, res) => {
 
 module.exports = {
   getFamilyStatsByRegion,
-  getFamilyStatsByDistrict,
   getFamilyStatsByRiskLevel,
   getFamilyStatsByStatus,
   getSupportStatsByType,
   getSupportStatsByStatus,
   getFamilyMemberStatsByAge,
   getDashboardStats,
+  getFamilyTypeStats,
+  getFamilyStatsByDistrict,
 }

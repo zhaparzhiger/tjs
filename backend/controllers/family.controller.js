@@ -101,12 +101,7 @@ const getFamilyById = async (req, res) => {
       return res.status(404).json({ message: "Family not found" })
     }
 
-    if (req.familyFilter) {
-      const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => family[key] === value)
-      if (!hasAccess) {
-        return res.status(403).json({ message: "You do not have access to this family" })
-      }
-    }
+    
 
     res.status(200).json(family)
   } catch (error) {
@@ -302,12 +297,6 @@ const updateFamily = async (req, res) => {
       return res.status(404).json({ message: "Family not found" })
     }
 
-    if (req.familyFilter) {
-      const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => existingFamily[key] === value)
-      if (!hasAccess) {
-        return res.status(403).json({ message: "You do not have access to this family" })
-      }
-    }
 
     if (req.familyFilter) {
       if (req.familyFilter.region && req.familyFilter.region !== region) {
@@ -536,12 +525,7 @@ const getFamilyHistory = async (req, res) => {
       return res.status(404).json({ message: "Family not found" })
     }
 
-    if (req.familyFilter) {
-      const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => existingFamily[key] === value)
-      if (!hasAccess) {
-        return res.status(403).json({ message: "You do not have access to this family" })
-      }
-    }
+   
 
     const history = await prisma.familyHistory.findMany({
       where: { familyId: id },

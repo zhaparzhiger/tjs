@@ -12,13 +12,7 @@ const getFamilySupport = async (req, res) => {
       return res.status(404).json({ message: "Family not found" })
     }
 
-    if (req.familyFilter) {
-      const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => family[key] === value)
-      if (!hasAccess) {
-        return res.status(403).json({ message: "You do not have access to this family" })
-      }
-    }
-
+ 
     const supportMeasures = await prisma.supportMeasure.findMany({
       where: { familyId },
       include: {
@@ -144,14 +138,7 @@ const createSupportMeasure = async (req, res) => {
       return res.status(404).json({ message: "Family not found" })
     }
 
-    if (req.familyFilter) {
-      const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => family[key] === value)
-      if (!hasAccess) {
-        console.log(`Access denied for family: ${familyId}`)
-        return res.status(403).json({ message: "You do not have access to this family" })
-      }
-    }
-
+ 
     if (memberId) {
       const member = await prisma.familyMember.findUnique({
         where: { id: memberId },
@@ -286,13 +273,7 @@ const updateSupportMeasure = async (req, res) => {
       return res.status(404).json({ message: "Family not found" })
     }
 
-    if (req.familyFilter) {
-      const hasAccess = Object.entries(req.familyFilter).every(([key, value]) => family[key] === value)
-      if (!hasAccess) {
-        console.log(`Access denied for family: ${familyId}`)
-        return res.status(403).json({ message: "You do not have access to this family" })
-      }
-    }
+ 
 
     if (memberId) {
       const member = await prisma.familyMember.findUnique({

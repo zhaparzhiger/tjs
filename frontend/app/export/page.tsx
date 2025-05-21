@@ -6,15 +6,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { DatePicker } from "@/components/date-picker"
+import { Input } from "@/components/ui/input" // Add Input component
 import { FileSpreadsheet, FileText, Download, RefreshCw } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { type UserRole, roleConfigs } from "@/types/roles"
 import { getFromStorage, STORAGE_KEYS } from "@/lib/storage-utils"
-// Импортируем функции для скачивания
-import { downloadEmptyExcel, downloadEmptyPdf } from "@/lib/export-utils"
+import axios from "axios"
+import { DatePicker } from "@/components/date-picker"
 
 export default function ExportPage() {
   const searchParams = useSearchParams()
@@ -24,74 +23,121 @@ export default function ExportPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [exportType, setExportType] = useState("families")
   const [exportFormat, setExportFormat] = useState("excel")
+  const [district, setDistrict] = useState("all")
+  const [startDate, setStartDate] = useState<Date | undefined>()
+  const [endDate, setEndDate] = useState<Date | undefined>()
+  const [searchQuery, setSearchQuery] = useState("") // New state for search
+  const [exportHistory, setExportHistory] = useState<any[]>([])
   const roleConfig = roleConfigs[role]
 
-  // Redirect if user doesn't have permission to export data
   useEffect(() => {
     if (!roleConfig.permissions.canExportData) {
       router.push(`/dashboard?role=${role}`)
     }
+    const history = getFromStorage(STORAGE_KEYS.EXPORT_HISTORY, [])
+    setExportHistory(history)
   }, [role, roleConfig.permissions.canExportData, router])
 
-  const handleExport = () => {
+  const handleExport = async () => {
     setIsLoading(true)
-    setTimeout(() => {
-      setIsLoading(false)
+    try {
+      const endpointMap: { [key: string]: string } = {
+        families: "http://localhost:5555/api/reports/families",
+        children: "http://localhost:5555/api/reports/members",
+        support: "http://localhost:5555/api/reports/support",
+        statistics: "http://localhost:5555/api/reports/analytics",
+      }
 
-      // Получаем данные в зависимости от типа экспорта
-      let data = []
-      let fileName = ""
+      const endpoint = endpointMap[exportType]
+      if (!endpoint) {
+        throw new Error("Invalid export type")
+      }
 
-      switch (exportType) {
-        case "families":
-          data = getFromStorage(STORAGE_KEYS.FAMILIES, [])
-          fileName = "Семьи"
-          break
-        case "children":
-          data = getFromStorage(STORAGE_KEYS.FAMILY_MEMBERS, [])
-          fileName = "Дети"
-          break
-        case "support":
-          data = getFromStorage(STORAGE_KEYS.FAMILY_SUPPORT, [])
-          fileName = "Меры_поддержки"
-          break
-        case "documents":
-          data = getFromStorage(STORAGE_KEYS.FAMILY_DOCUMENTS, [])
-          fileName = "Документы"
-          break
-        case "all":
-          data = {
-            families: getFromStorage(STORAGE_KEYS.FAMILIES, []),
-            members: getFromStorage(STORAGE_KEYS.FAMILY_MEMBERS, []),
-            support: getFromStorage(STORAGE_KEYS.FAMILY_SUPPORT, []),
-            documents: getFromStorage(STORAGE_KEYS.FAMILY_DOCUMENTS, []),
+      const params = new URLSearchParams()
+      if (district !== "all") params.append("district", district)
+      if (startDate) params.append("startDate", startDate.toISOString())
+      if (endDate) params.append("endDate", endDate.toISOString())
+      if (searchQuery) params.append("search", searchQuery)
+      params.append("format", exportFormat)
+
+      console.log(`Exporting with search: "${searchQuery || "none"}"`)
+
+      try {
+        const response = await axios.get(`${endpoint}?${params.toString()}`, {
+          responseType: "blob",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+          },
+        })
+
+        // Check if the response is an error message (small JSON response instead of a file)
+        if (response.data.size < 1000 && response.headers["content-type"].includes("application/json")) {
+          const reader = new FileReader()
+          reader.onload = () => {
+            try {
+              const errorData = JSON.parse(reader.result as string)
+              throw new Error(errorData.message || "Export failed")
+            } catch (e) {
+              throw new Error("Export failed: No data found")
+            }
           }
-          fileName = "Все_данные"
-          break
-        default:
-          data = getFromStorage(STORAGE_KEYS.FAMILIES, [])
-          fileName = "Данные"
+          reader.readAsText(response.data)
+          return
+        }
+
+        const url = window.URL.createObjectURL(new Blob([response.data]))
+        const fileName = `${exportType}-report-${new Date().toISOString().split("T")[0]}.${
+          exportFormat === "excel" ? "xlsx" : exportFormat
+        }`
+        const link = document.createElement("a")
+        link.href = url
+        link.setAttribute("download", fileName)
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+
+        const newExport = {
+          id: exportHistory.length + 1,
+          fileName,
+          date: new Date().toLocaleString("ru-RU"),
+          type: exportType,
+          format: exportFormat,
+          user: "Текущий пользователь",
+          params: {
+            district: district !== "all" ? district : undefined,
+            startDate: startDate?.toISOString(),
+            endDate: endDate?.toISOString(),
+            search: searchQuery || undefined,
+          },
+        }
+
+        const updatedHistory = [newExport, ...exportHistory]
+        localStorage.setItem(STORAGE_KEYS.EXPORT_HISTORY, JSON.stringify(updatedHistory))
+        setExportHistory(updatedHistory)
+
+        toast({
+          title: "Экспорт данных",
+          description: `Данные успешно экспортированы в формате ${exportFormat.toUpperCase()}`,
+        })
+      } catch (error) {
+        console.error("Export request error:", error)
+        throw error
       }
-
-      // Добавляем запись в историю экспорта
-      const exportHistory = getFromStorage(STORAGE_KEYS.EXPORT_HISTORY, [])
-      const newExport = {
-        id: exportHistory.length + 1,
-        fileName: `${fileName}.${exportFormat}`,
-        date: new Date().toLocaleString("ru-RU"),
-        type: exportType,
-        format: exportFormat,
-        user: "Текущий пользователь",
-      }
-
-      // Сохраняем историю экспорта
-      localStorage.setItem(STORAGE_KEYS.EXPORT_HISTORY, JSON.stringify([newExport, ...exportHistory]))
-
+    } catch (error) {
+      console.error("Export error:", error)
+      const message =
+        error.response?.status === 404
+          ? "Семья не найдена по указанному запросу. Попробуйте другой ФИО или ИИН."
+          : "Не удалось экспортировать данные. Пожалуйста, попробуйте снова."
       toast({
-        title: "Экспорт данных",
-        description: `Данные успешно экспортированы в формате ${exportFormat.toUpperCase()}`,
+        title: "Ошибка экспорта",
+        description: message,
+        variant: "destructive",
       })
-    }, 2000)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   if (!roleConfig.permissions.canExportData) {
@@ -116,7 +162,7 @@ export default function ExportPage() {
               <div className="space-y-6">
                 <div className="grid gap-2">
                   <Label htmlFor="exportType">Тип экспорта</Label>
-                  <Select defaultValue="families" onValueChange={(value) => setExportType(value)}>
+                  <Select value={exportType} onValueChange={setExportType}>
                     <SelectTrigger id="exportType">
                       <SelectValue placeholder="Выберите тип экспорта" />
                     </SelectTrigger>
@@ -125,15 +171,13 @@ export default function ExportPage() {
                       <SelectItem value="children">Данные о детях</SelectItem>
                       <SelectItem value="support">Меры поддержки</SelectItem>
                       <SelectItem value="statistics">Статистические данные</SelectItem>
-                      <SelectItem value="documents">Документы</SelectItem>
-                      <SelectItem value="all">Все данные</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="grid gap-2">
                   <Label htmlFor="exportFormat">Формат файла</Label>
-                  <Select defaultValue="excel" onValueChange={(value) => setExportFormat(value)}>
+                  <Select value={exportFormat} onValueChange={setExportFormat}>
                     <SelectTrigger id="exportFormat">
                       <SelectValue placeholder="Выберите формат файла" />
                     </SelectTrigger>
@@ -148,7 +192,7 @@ export default function ExportPage() {
 
                 <div className="grid gap-2">
                   <Label htmlFor="district">Район</Label>
-                  <Select defaultValue="all">
+                  <Select value={district} onValueChange={setDistrict}>
                     <SelectTrigger id="district">
                       <SelectValue placeholder="Выберите район" />
                     </SelectTrigger>
@@ -165,44 +209,24 @@ export default function ExportPage() {
                   </Select>
                 </div>
 
+                <div className="grid gap-2">
+                  <Label htmlFor="searchQuery">Поиск семьи (ФИО или ИИН)</Label>
+                  <Input
+                    id="searchQuery"
+                    placeholder="Введите ФИО семьи или ИИН члена семьи"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label>Период с</Label>
-                    <DatePicker />
+                    <DatePicker date={startDate} setDate={setStartDate} />
                   </div>
                   <div className="grid gap-2">
                     <Label>Период по</Label>
-                    <DatePicker />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Дополнительные параметры</Label>
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="includePersonalData" />
-                      <Label htmlFor="includePersonalData" className="font-normal">
-                        Включить персональные данные
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="includeContacts" />
-                      <Label htmlFor="includeContacts" className="font-normal">
-                        Включить контактные данные
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="includeDocuments" />
-                      <Label htmlFor="includeDocuments" className="font-normal">
-                        Включить список документов
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="includeHistory" />
-                      <Label htmlFor="includeHistory" className="font-normal">
-                        Включить историю изменений
-                      </Label>
-                    </div>
+                    <DatePicker date={endDate} setDate={setEndDate} />
                   </div>
                 </div>
 
@@ -221,222 +245,100 @@ export default function ExportPage() {
                 </Button>
               </div>
 
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Последние экспорты</CardTitle>
-                    <CardDescription>История экспорта данных</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between p-2 rounded-lg border hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center space-x-3">
-                          <FileSpreadsheet className="h-5 w-5 text-green-500" />
-                          <div>
-                            <p className="text-sm font-medium">Данные о семьях.xlsx</p>
-                            <p className="text-xs text-muted-foreground">17.04.2025, 14:30</p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            downloadEmptyExcel("Данные о семьях")
-                            toast({
-                              title: "Скачивание файла",
-                              description: "Файл 'Данные о семьях.xlsx' скачивается",
-                            })
-                          }}
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      <div className="flex items-center justify-between p-2 rounded-lg border hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center space-x-3">
-                          <FileText className="h-5 w-5 text-red-500" />
-                          <div>
-                            <p className="text-sm font-medium">Статистика по районам.pdf</p>
-                            <p className="text-xs text-muted-foreground">15.04.2025, 10:15</p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            downloadEmptyPdf("Статистика по районам")
-                            toast({
-                              title: "Скачивание файла",
-                              description: "Файл 'Статистика по районам.pdf' скачивается",
-                            })
-                          }}
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      <div className="flex items-center justify-between p-2 rounded-lg border hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center space-x-3">
-                          <FileSpreadsheet className="h-5 w-5 text-green-500" />
-                          <div>
-                            <p className="text-sm font-medium">Меры поддержки.xlsx</p>
-                            <p className="text-xs text-muted-foreground">12.04.2025, 09:45</p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            downloadEmptyExcel("Меры поддержки")
-                            toast({
-                              title: "Скачивание файла",
-                              description: "Файл 'Меры поддержки.xlsx' скачивается",
-                            })
-                          }}
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      <div className="flex items-center justify-between p-2 rounded-lg border hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center space-x-3">
-                          <FileSpreadsheet className="h-5 w-5 text-blue-500" />
-                          <div>
-                            <p className="text-sm font-medium">Данные о детях.csv</p>
-                            <p className="text-xs text-muted-foreground">10.04.2025, 16:20</p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            downloadEmptyExcel("Данные о детях")
-                            toast({
-                              title: "Скачивание файла",
-                              description: "Файл 'Данные о детях.csv' скачивается",
-                            })
-                          }}
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      <div className="flex items-center justify-between p-2 rounded-lg border hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center space-x-3">
-                          <FileSpreadsheet className="h-5 w-5 text-purple-500" />
-                          <div>
-                            <p className="text-sm font-medium">Полный экспорт.json</p>
-                            <p className="text-xs text-muted-foreground">05.04.2025, 11:30</p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            downloadEmptyExcel("Полный экспорт")
-                            toast({
-                              title: "Скачивание файла",
-                              description: "Файл 'Полный экспорт.json' скачивается",
-                            })
-                          }}
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Запланированные экспорты</CardTitle>
-                    <CardDescription>Автоматический экспорт данных</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between p-2 rounded-lg border hover:bg-muted/50 transition-colors">
-                        <div>
-                          <p className="text-sm font-medium">Еженедельный отчет</p>
-                          <p className="text-xs text-muted-foreground">Каждый понедельник, 08:00</p>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              toast({
-                                title: "Изменение расписания",
-                                description: "Открыто окно редактирования расписания",
-                              })
-                            }}
-                          >
-                            Изменить
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-destructive"
-                            onClick={() => {
-                              toast({
-                                title: "Отмена экспорта",
-                                description: "Запланированный экспорт отменен",
-                              })
-                            }}
-                          >
-                            Отменить
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between p-2 rounded-lg border hover:bg-muted/50 transition-colors">
-                        <div>
-                          <p className="text-sm font-medium">Ежемесячный отчет</p>
-                          <p className="text-xs text-muted-foreground">1-е число каждого месяца, 09:00</p>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              toast({
-                                title: "Изменение расписания",
-                                description: "Открыто окно редактирования расписания",
-                              })
-                            }}
-                          >
-                            Изменить
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-destructive"
-                            onClick={() => {
-                              toast({
-                                title: "Отмена экспорта",
-                                description: "Запланированный экспорт отменен",
-                              })
-                            }}
-                          >
-                            Отменить
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Последние экспорты</h3>
+                  {exportHistory.length > 7 && (
                     <Button
-                      variant="outline"
-                      className="w-full mt-4"
-                      onClick={() => {
+                      variant="link"
+                      size="sm"
+                      onClick={() =>
                         toast({
-                          title: "Добавление экспорта",
-                          description: "Открыто окно добавления запланированного экспорта",
+                          title: "История экспортов",
+                          description: "Полная история экспортов будет доступна в следующем обновлении",
                         })
-                      }}
+                      }
                     >
-                      Добавить запланированный экспорт
+                      Показать все
                     </Button>
-                  </CardContent>
-                </Card>
+                  )}
+                </div>
+
+                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
+                  {exportHistory.slice(0, 7).map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between p-2 rounded-lg border hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center space-x-3">
+                        {item.format === "pdf" ? (
+                          <FileText className="h-5 w-5 text-red-500" />
+                        ) : (
+                          <FileSpreadsheet className="h-5 w-5 text-green-500" />
+                        )}
+                        <div>
+                          <p className="text-sm font-medium">{item.fileName}</p>
+                          <p className="text-xs text-muted-foreground">{item.date}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={async () => {
+                          setIsLoading(true)
+                          try {
+                            const response = await axios.post(
+                              "http://localhost:5555/api/reports/regenerate",
+                              {
+                                type: item.type,
+                                format: item.format,
+                                params: item.params,
+                              },
+                              {
+                                responseType: "blob",
+                                headers: {
+                                  Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+                                },
+                              },
+                            )
+
+                            const url = window.URL.createObjectURL(new Blob([response.data]))
+                            const link = document.createElement("a")
+                            link.href = url
+                            link.setAttribute("download", item.fileName)
+                            document.body.appendChild(link)
+                            link.click()
+                            document.body.removeChild(link)
+                            window.URL.revokeObjectURL(url)
+
+                            toast({
+                              title: "Файл скачан",
+                              description: `Файл '${item.fileName}' успешно скачан`,
+                            })
+                          } catch (error) {
+                            console.error("Re-download error:", error)
+                            toast({
+                              title: "Ошибка скачивания",
+                              description: "Не удалось скачать файл. Пожалуйста, попробуйте снова.",
+                              variant: "destructive",
+                            })
+                          } finally {
+                            setIsLoading(false)
+                          }
+                        }}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                {exportHistory.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileSpreadsheet className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                    <p>История экспортов пуста</p>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>

@@ -35,6 +35,8 @@ model User {
   notificationsReceived  Notification[]   @relation("NotificationRecipient")
 
   FamilyHistory FamilyHistory[]
+
+  ReportHistory ReportHistory[]
 }
 
 // Остальные модели остаются без изменений
@@ -244,4 +246,13 @@ model Notification {
   creatorId   String @db.ObjectId
   recipient   User   @relation("NotificationRecipient", fields: [recipientId], references: [id])
   recipientId String @db.ObjectId
+}
+
+model ReportHistory {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  filename    String
+  type        String // families, members, support, documents, analytics
+  createdAt   DateTime @default(now())
+  createdById String   @db.ObjectId
+  createdBy   User     @relation(fields: [createdById], references: [id])
 }

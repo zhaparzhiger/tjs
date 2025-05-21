@@ -1,12 +1,12 @@
-"use client";
+"use client"
 
-import type React from "react";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import type React from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
   DialogContent,
@@ -15,58 +15,58 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Edit, Trash2, UserPlus, Eye, Filter, Upload } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import type { UserRole } from "@/types/roles";
-import type { FamilyMember } from "@/types/models";
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Edit, Trash2, UserPlus, Eye, Filter, Upload } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import type { UserRole } from "@/types/roles"
+import type { FamilyMember } from "@/types/models"
 
 interface FamilyMembersExtendedProps {
-  family: { id: string; name: string; iin: string };
-  role: UserRole;
+  family: { id: string; name: string; iin: string }
+  role: UserRole
 }
 
 export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedProps) {
-  const { toast } = useToast();
-  const router = useRouter();
-  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const [activeFilter, setActiveFilter] = useState("all");
-  const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
-  const [members, setMembers] = useState<FamilyMember[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState("Взрослый");
-  const [selectedRelation, setSelectedRelation] = useState<string>(""); // New state for relationship
+  const { toast } = useToast()
+  const router = useRouter()
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false)
+  const [isUploadOpen, setIsUploadOpen] = useState(false)
+  const [activeFilter, setActiveFilter] = useState("all")
+  const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null)
+  const [members, setMembers] = useState<FamilyMember[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedStatus, setSelectedStatus] = useState("Взрослый")
+  const [selectedRelation, setSelectedRelation] = useState<string>("") // New state for relationship
 
   useEffect(() => {
     const fetchMembers = async () => {
       if (!family.id) {
-        setError("Invalid family ID");
-        setLoading(false);
-        return;
+        setError("Invalid family ID")
+        setLoading(false)
+        return
       }
 
-      setLoading(true);
-      setError(null);
-      setMembers([]);
+      setLoading(true)
+      setError(null)
+      setMembers([])
       try {
         const response = await fetch(`http://localhost:5555/api/family-members/family/${family.id}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
           },
-        });
+        })
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to fetch family members");
+          const errorData = await response.json()
+          throw new Error(errorData.message || "Failed to fetch family members")
         }
 
-        const fetchedMembers = await response.json();
+        const fetchedMembers = await response.json()
         const mappedMembers: FamilyMember[] = fetchedMembers.map((member: any) => ({
           id: member.id,
           familyId: member.familyId,
@@ -74,9 +74,7 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
           iin: member.documentNumber || "",
           relation: member.relationship || "Не указано",
           age: member.birthDate
-            ? Math.floor(
-                (new Date().getTime() - new Date(member.birthDate).getTime()) / (1000 * 60 * 60 * 24 * 365)
-              )
+            ? Math.floor((new Date().getTime() - new Date(member.birthDate).getTime()) / (1000 * 60 * 60 * 24 * 365))
             : 0,
           status: member.status || determineStatus(member),
           registrationAddress: member.registrationAddress || member.family?.address || "",
@@ -90,88 +88,86 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
           funding: member.funding || "",
           meals: member.meals || "",
           notes: member.notes || "",
-        }));
+        }))
 
-        const uniqueMembers = Array.from(
-          new Map(mappedMembers.map((member) => [member.id, member])).values()
-        );
-        console.log("Fetched unique members:", uniqueMembers);
-        setMembers(uniqueMembers);
+        const uniqueMembers = Array.from(new Map(mappedMembers.map((member) => [member.id, member])).values())
+        console.log("Fetched unique members:", uniqueMembers)
+        setMembers(uniqueMembers)
       } catch (err: any) {
-        console.error("Error fetching family members:", err);
-        setError(err.message || "Не удалось загрузить членов семьи");
+        console.error("Error fetching family members:", err)
+        setError(err.message || "Не удалось загрузить членов семьи")
         toast({
           title: "Ошибка",
           description: err.message || "Не удалось загрузить членов семьи",
           variant: "destructive",
-        });
+        })
 
         if (err.message.includes("Unauthorized")) {
-          localStorage.removeItem("auth_token");
-          router.push("/login");
+          localStorage.removeItem("auth_token")
+          router.push("/login")
         }
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
-    fetchMembers();
-  }, [family.id, router, toast]);
+    fetchMembers()
+  }, [family.id, router, toast])
 
   const determineStatus = (member: any): string => {
     if (member.status) {
-      return member.status;
+      return member.status
     }
     if (member.formStatus) {
-      return member.formStatus;
+      return member.formStatus
     }
     if (member.grade || (member.education && member.education.toLowerCase().includes("школа"))) {
-      return "Школьник";
+      return "Школьник"
     }
     if (member.institution || (member.education && member.education.toLowerCase().includes("университет"))) {
-      return "Студент";
+      return "Студент"
     }
     if (member.age <= 6) {
-      return "Дошкольник";
+      return "Дошкольник"
     }
-    return "Взрослый";
-  };
+    return "Взрослый"
+  }
 
   const handleAddMember = async (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("handleAddMember started");
+    e.preventDefault()
+    console.log("handleAddMember started")
 
     try {
-      const form = e.target as HTMLFormElement;
-      console.log("Form element:", form);
+      const form = e.target as HTMLFormElement
+      console.log("Form element:", form)
 
       // Capture inputs
-      const nameInput = (form.querySelector("#name") as HTMLInputElement)?.value?.trim();
-      const nameParts = nameInput ? nameInput.split(/\s+/).filter(Boolean) : [];
-      const firstName = nameParts[0] || "";
-      const lastName = nameParts[1] || "";
-      const middleName = nameParts.slice(2).join(" ") || null;
-      const documentNumber = (form.querySelector("#iin") as HTMLInputElement)?.value?.trim();
-      const relationship = selectedRelation; // Use state instead of DOM query
-      const ageInput = (form.querySelector("#age") as HTMLInputElement)?.value;
-      const age = ageInput ? parseInt(ageInput, 10) : NaN;
-      const statusElement = form.querySelector("#status") as HTMLSelectElement;
-      const status = statusElement?.value || selectedStatus;
-      const registrationAddress = (form.querySelector("#registrationAddress") as HTMLInputElement)?.value?.trim();
-      const genderElement = form.querySelector("#gender") as HTMLSelectElement;
-      const gender = genderElement?.value;
+      const nameInput = (form.querySelector("#name") as HTMLInputElement)?.value?.trim()
+      const nameParts = nameInput ? nameInput.split(/\s+/).filter(Boolean) : []
+      const firstName = nameParts[0] || ""
+      const lastName = nameParts[1] || ""
+      const middleName = nameParts.slice(2).join(" ") || null
+      const documentNumber = (form.querySelector("#iin") as HTMLInputElement)?.value?.trim()
+      const relationship = selectedRelation // Use state instead of DOM query
+      const ageInput = (form.querySelector("#age") as HTMLInputElement)?.value
+      const age = ageInput ? Number.parseInt(ageInput, 10) : Number.NaN
+      const statusElement = form.querySelector("#status") as HTMLSelectElement
+      const status = statusElement?.value || selectedStatus
+      const registrationAddress = (form.querySelector("#registrationAddress") as HTMLInputElement)?.value?.trim()
+      const genderElement = form.querySelector("#gender") as HTMLSelectElement
+      const gender = genderElement?.value
 
       // Conditional fields
-      const idCardNumber = (form.querySelector("#idCardNumber") as HTMLInputElement)?.value?.trim();
-      const idCardNotes = (form.querySelector("#idCardNotes") as HTMLInputElement)?.value?.trim();
-      const school = (form.querySelector("#school") as HTMLInputElement)?.value?.trim();
-      const grade = (form.querySelector("#grade") as HTMLInputElement)?.value?.trim();
-      const institution = (form.querySelector("#institution") as HTMLInputElement)?.value?.trim();
-      const course = (form.querySelector("#course") as HTMLInputElement)?.value?.trim();
-      const fundingElement = form.querySelector("#funding") as HTMLSelectElement;
-      const funding = fundingElement?.value;
-      const mealsElement = form.querySelector("#meals") as HTMLSelectElement;
-      const meals = mealsElement?.value;
+      const idCardNumber = (form.querySelector("#idCardNumber") as HTMLInputElement)?.value?.trim()
+      const idCardNotes = (form.querySelector("#idCardNotes") as HTMLInputElement)?.value?.trim()
+      const school = (form.querySelector("#school") as HTMLInputElement)?.value?.trim()
+      const grade = (form.querySelector("#grade") as HTMLInputElement)?.value?.trim()
+      const institution = (form.querySelector("#institution") as HTMLInputElement)?.value?.trim()
+      const course = (form.querySelector("#course") as HTMLInputElement)?.value?.trim()
+      const fundingElement = form.querySelector("#funding") as HTMLSelectElement
+      const funding = fundingElement?.value
+      const mealsElement = form.querySelector("#meals") as HTMLSelectElement
+      const meals = mealsElement?.value
 
       console.log("Form inputs:", {
         firstName,
@@ -191,75 +187,75 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
         course,
         funding,
         meals,
-      });
+      })
 
       // Validate inputs
       if (!nameInput || !firstName || !lastName) {
-        console.log("Validation failed: Invalid name");
+        console.log("Validation failed: Invalid name")
         toast({
           title: "Ошибка",
           description: "Введите полное ФИО (имя и фамилия обязательны)",
           variant: "destructive",
-        });
-        return;
+        })
+        return
       }
       if (!documentNumber || !/^\d{12}$/.test(documentNumber)) {
-        console.log("Validation failed: Invalid documentNumber");
+        console.log("Validation failed: Invalid documentNumber")
         toast({
           title: "Ошибка",
           description: "ИИН должен состоять из 12 цифр",
           variant: "destructive",
-        });
-        return;
+        })
+        return
       }
       if (!family?.id) {
-        console.log("Validation failed: No family ID");
+        console.log("Validation failed: No family ID")
         toast({
           title: "Ошибка",
           description: "Семья не найдена. Пожалуйста, выберите семью.",
           variant: "destructive",
-        });
-        return;
+        })
+        return
       }
       if (!relationship) {
-        console.log("Validation failed: No relationship");
+        console.log("Validation failed: No relationship")
         toast({
           title: "Ошибка",
           description: "Выберите родственную связь",
           variant: "destructive",
-        });
-        return;
+        })
+        return
       }
       if (!status || !["Взрослый", "Студент", "Школьник", "Дошкольник"].includes(status)) {
-        console.log("Validation failed: Invalid status");
+        console.log("Validation failed: Invalid status")
         toast({
           title: "Ошибка",
           description: "Выберите корректный статус (Взрослый, Студент, Школьник, Дошкольник)",
           variant: "destructive",
-        });
-        return;
+        })
+        return
       }
       if (isNaN(age) || age < 0 || age > 150) {
-        console.log("Validation failed: Invalid age");
+        console.log("Validation failed: Invalid age")
         toast({
           title: "Ошибка",
           description: "Введите корректный возраст (от 0 до 150 лет)",
           variant: "destructive",
-        });
-        return;
+        })
+        return
       }
 
-      console.log("Validation passed");
+      console.log("Validation passed")
 
-      const birthDate = new Date(new Date().setFullYear(new Date().getFullYear() - age)).toISOString();
+      const birthDate = new Date(new Date().setFullYear(new Date().getFullYear() - age)).toISOString()
       if (!birthDate || birthDate === "Invalid Date") {
-        console.log("Validation failed: Invalid birthDate");
+        console.log("Validation failed: Invalid birthDate")
         toast({
           title: "Ошибка",
           description: "Невозможно вычислить дату рождения",
           variant: "destructive",
-        });
-        return;
+        })
+        return
       }
 
       const newMember: any = {
@@ -274,24 +270,24 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
         gender: gender || null,
         status,
         formStatus: status,
-      };
-
-      if (status === "Взрослый") {
-        newMember.documentType = "Удостоверение личности";
-        newMember.idCardNumber = idCardNumber || documentNumber;
-        newMember.notes = idCardNotes || null;
-      } else if (status === "Школьник") {
-        newMember.education = school || null;
-        newMember.grade = grade || null;
-      } else if (status === "Студент") {
-        newMember.institution = institution || null;
-        newMember.course = course || null;
-        newMember.funding = funding || null;
-      } else if (status === "Дошкольник") {
-        newMember.meals = meals || null;
       }
 
-      console.log("Sending newMember:", newMember);
+      if (status === "Взрослый") {
+        newMember.documentType = "Удостоверение личности"
+        newMember.idCardNumber = idCardNumber || documentNumber
+        newMember.notes = idCardNotes || null
+      } else if (status === "Школьник") {
+        newMember.education = school || null
+        newMember.grade = grade || null
+      } else if (status === "Студент") {
+        newMember.institution = institution || null
+        newMember.course = course || null
+        newMember.funding = funding || null
+      } else if (status === "Дошкольник") {
+        newMember.meals = meals || null
+      }
+
+      console.log("Sending newMember:", newMember)
 
       const response = await fetch(`http://localhost:5555/api/family-members`, {
         method: "POST",
@@ -300,18 +296,18 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
           Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
         },
         body: JSON.stringify(newMember),
-      });
+      })
 
-      console.log("Fetch response status:", response.status);
+      console.log("Fetch response status:", response.status)
 
       if (!response.ok) {
-        const errorData = await response.json();
-        console.log("Fetch error data:", errorData);
-        throw new Error(errorData.message || "Failed to create family member");
+        const errorData = await response.json()
+        console.log("Fetch error data:", errorData)
+        throw new Error(errorData.message || "Failed to create family member")
       }
 
-      const createdMember = await response.json();
-      console.log("Backend response:", createdMember);
+      const createdMember = await response.json()
+      console.log("Backend response:", createdMember)
 
       const relationshipDisplayMap: { [key: string]: string } = {
         mother: "Мать",
@@ -322,7 +318,7 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
         grandfather: "Дедушка",
         guardian: "Опекун",
         other: "Другое",
-      };
+      }
 
       const mappedMember: FamilyMember = {
         id: createdMember.id,
@@ -334,7 +330,7 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
         relation: relationshipDisplayMap[createdMember.relationship] || "Не указано",
         age: createdMember.birthDate
           ? Math.floor(
-              (new Date().getTime() - new Date(createdMember.birthDate).getTime()) / (1000 * 60 * 60 * 24 * 365)
+              (new Date().getTime() - new Date(createdMember.birthDate).getTime()) / (1000 * 60 * 60 * 24 * 365),
             )
           : 0,
         status: createdMember.status || determineStatus({ ...createdMember, formStatus: status }),
@@ -349,41 +345,41 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
         funding: createdMember.funding || "",
         meals: createdMember.meals || "",
         notes: createdMember.notes || "",
-      };
+      }
 
       setMembers((prev) => {
-        const updatedMembers = prev.filter((m) => m.id !== mappedMember.id);
-        console.log("Adding new member:", mappedMember);
-        return [...updatedMembers, mappedMember];
-      });
-      setIsAddMemberOpen(false);
-      setSelectedRelation(""); // Reset relationship
+        const updatedMembers = prev.filter((m) => m.id !== mappedMember.id)
+        console.log("Adding new member:", mappedMember)
+        return [...updatedMembers, mappedMember]
+      })
+      setIsAddMemberOpen(false)
+      setSelectedRelation("") // Reset relationship
       toast({
         title: "Член семьи добавлен",
         description: "Новый член семьи успешно добавлен",
         variant: "default",
-      });
+      })
     } catch (err: any) {
-      console.error("Error adding family member:", err);
-      let errorMessage = err.message || "Не удалось добавить члена семьи";
+      console.error("Error adding family member:", err)
+      let errorMessage = err.message || "Не удалось добавить члена семьи"
       if (err.message.includes("Family not found")) {
-        errorMessage = "Семья не найдена.";
+        errorMessage = "Семья не найдена."
       } else if (err.message.includes("document number already exists")) {
-        errorMessage = "Член семьи с таким ИИН уже существует.";
+        errorMessage = "Член семьи с таким ИИН уже существует."
       } else if (err.message.includes("Invalid status")) {
-        errorMessage = "Неверный статус. Выберите: Взрослый, Студент, Школьник, Дошкольник.";
+        errorMessage = "Неверный статус. Выберите: Взрослый, Студент, Школьник, Дошкольник."
       } else if (err.message.includes("Relationship is required")) {
-        errorMessage = "Выберите родственную связь.";
+        errorMessage = "Выберите родственную связь."
       } else if (err.message.includes("Invalid data provided")) {
-        errorMessage = "Неверные данные. Пожалуйста, проверьте введенную информацию.";
+        errorMessage = "Неверные данные. Пожалуйста, проверьте введенную информацию."
       }
       toast({
         title: "Ошибка",
         description: errorMessage,
         variant: "destructive",
-      });
+      })
     }
-  };
+  }
 
   const handleDeleteMember = async (id: string) => {
     try {
@@ -392,59 +388,59 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
         headers: {
           Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
         },
-      });
+      })
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to delete family member");
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to delete family member")
       }
 
-      setMembers((prev) => prev.filter((member) => member.id !== id));
+      setMembers((prev) => prev.filter((member) => member.id !== id))
       toast({
         title: "Член семьи удален",
         description: "Член семьи успешно удален из списка",
         variant: "default",
-      });
+      })
     } catch (err: any) {
-      console.error("Error deleting family member:", err);
+      console.error("Error deleting family member:", err)
       toast({
         title: "Ошибка",
         description: err.message || "Не удалось удалить члена семьи",
         variant: "destructive",
-      });
+      })
     }
-  };
+  }
 
   const handleViewMember = (member: FamilyMember) => {
-    router.push(`/family-member/${member.id}?role=${role}&familyId=${family.id}`);
-  };
+    router.push(`/family-member/${member.id}?role=${role}&familyId=${family.id}`)
+  }
 
   const handleUploadDocuments = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsUploadOpen(false);
+    e.preventDefault()
+    setIsUploadOpen(false)
     toast({
       title: "Документы загружены",
       description: "Документы успешно загружены",
       variant: "default",
-    });
-  };
+    })
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "Школьник":
-        return <Badge className="bg-blue-600">Школьник</Badge>;
+        return <Badge className="bg-blue-600">Школьник</Badge>
       case "Дошкольник":
-        return <Badge className="bg-green-600">Дошкольник</Badge>;
+        return <Badge className="bg-green-600">Дошкольник</Badge>
       case "Студент":
-        return <Badge className="bg-purple-600">Студент</Badge>;
+        return <Badge className="bg-purple-600">Студент</Badge>
       case "Взрослый":
-        return <Badge variant="outline">Взрослый</Badge>;
+        return <Badge variant="outline">Взрослый</Badge>
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline">{status}</Badge>
     }
-  };
+  }
 
-  const filteredMembers = activeFilter === "all" ? members : members.filter((member) => member.status === activeFilter);
+  const filteredMembers = activeFilter === "all" ? members : members.filter((member) => member.status === activeFilter)
 
   if (loading) {
     return (
@@ -453,7 +449,7 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
           <p>Загрузка членов семьи...</p>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   if (error) {
@@ -463,20 +459,21 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
           <p>{error}</p>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle>Члены семьи: {family.name}</CardTitle>
-          <div className="flex space-x-2">
+        <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2">
+          <CardTitle className="text-xl">Члены семьи: {family.name}</CardTitle>
+          <div className="flex w-full xs:w-auto">
             <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>
               <DialogTrigger asChild>
-                <Button>
+                <Button className="w-full xs:w-auto">
                   <UserPlus className="mr-2 h-4 w-4" />
-                  Добавить члена семьи
+                  <span className="hidden xs:inline">Добавить члена семьи</span>
+                  <span className="xs:hidden">Добавить</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-h-[90vh] overflow-y-auto">
@@ -513,8 +510,8 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
                         name="relation"
                         value={selectedRelation}
                         onValueChange={(value) => {
-                          console.log("Selected relationship:", value);
-                          setSelectedRelation(value);
+                          console.log("Selected relationship:", value)
+                          setSelectedRelation(value)
                         }}
                         required
                       >
@@ -568,8 +565,8 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
                       <Select
                         value={selectedStatus}
                         onValueChange={(value) => {
-                          console.log("Selected status:", value);
-                          setSelectedStatus(value);
+                          console.log("Selected status:", value)
+                          setSelectedStatus(value)
                         }}
                         name="status"
                         required
@@ -651,10 +648,7 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
                     )}
                   </div>
                   <DialogFooter>
-                    <Button
-                      type="submit"
-                      onClick={() => console.log("Submit button clicked")}
-                    >
+                    <Button type="submit" onClick={() => console.log("Submit button clicked")}>
                       Добавить
                     </Button>
                   </DialogFooter>
@@ -665,17 +659,29 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex justify-between items-center mb-4">
-          <Tabs defaultValue="all" onValueChange={setActiveFilter}>
-            <TabsList className="w-full">
-              <TabsTrigger value="all" className="family-tab">Все</TabsTrigger>
-              <TabsTrigger value="Взрослый" className="family-tab">Взрослые</TabsTrigger>
-              <TabsTrigger value="Студент" className="family-tab">Студенты</TabsTrigger>
-              <TabsTrigger value="Школьник" className="family-tab">Школьники</TabsTrigger>
-              <TabsTrigger value="Дошкольник" className="family-tab">Дошкольники</TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <Button variant="outline" size="sm">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
+          <div className="w-full overflow-x-auto no-scrollbar">
+            <Tabs defaultValue="all" onValueChange={setActiveFilter}>
+              <TabsList className="w-max min-w-full flex">
+                <TabsTrigger value="all" className="flex-1 whitespace-nowrap">
+                  Все
+                </TabsTrigger>
+                <TabsTrigger value="Взрослый" className="flex-1 whitespace-nowrap">
+                  Взрослые
+                </TabsTrigger>
+                <TabsTrigger value="Студент" className="flex-1 whitespace-nowrap">
+                  Студенты
+                </TabsTrigger>
+                <TabsTrigger value="Школьник" className="flex-1 whitespace-nowrap">
+                  Школьники
+                </TabsTrigger>
+                <TabsTrigger value="Дошкольник" className="flex-1 whitespace-nowrap">
+                  Дошкольники
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+          <Button variant="outline" size="sm" className="w-full sm:w-auto">
             <Filter className="mr-2 h-4 w-4" />
             Фильтры
           </Button>
@@ -713,8 +719,8 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
                           variant="ghost"
                           size="icon"
                           onClick={() => {
-                            setSelectedMember(member);
-                            setIsUploadOpen(true);
+                            setSelectedMember(member)
+                            setIsUploadOpen(true)
                           }}
                         >
                           <Upload className="h-4 w-4" />
@@ -768,8 +774,8 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      setSelectedMember(member);
-                      setIsUploadOpen(true);
+                      setSelectedMember(member)
+                      setIsUploadOpen(true)
                     }}
                   >
                     <Upload className="mr-1 h-4 w-4" />
@@ -826,5 +832,5 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
         </Dialog>
       </CardContent>
     </Card>
-  );
+  )
 }

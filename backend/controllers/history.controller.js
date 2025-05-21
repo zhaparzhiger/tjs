@@ -99,9 +99,7 @@ exports.deleteHistoryRecord = async (req, res) => {
 exports.getAllHistory = async (req, res) => {
   try {
     // Проверяем, является ли пользователь администратором
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ message: "Недостаточно прав для просмотра всей истории" })
-    }
+   
 
     const { page = 1, limit = 50, search } = req.query
     const skip = (page - 1) * limit

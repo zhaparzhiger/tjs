@@ -9,6 +9,7 @@ const {
   getSupportStatsByStatus,
   getFamilyMemberStatsByAge,
   getDashboardStats,
+  getFamilyTypeStats,
 } = require("../controllers/statistics.controller")
 const { verifyToken, checkRegionAccess, filterFamiliesByAccess } = require("../middleware/auth")
 
@@ -28,5 +29,9 @@ router.get("/families/status", getFamilyStatsByStatus)
 router.get("/support/type", getSupportStatsByType)
 router.get("/support/status", getSupportStatsByStatus)
 router.get("/members/age", getFamilyMemberStatsByAge)
+// Family type statistics
+router.get("/families/type", getFamilyTypeStats)
 
+// Replace your existing district route with this one
+router.get("/families/district", getFamilyStatsByDistrict)
 module.exports = router

@@ -69,10 +69,10 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
       school: {
         canViewDocuments: true,
         canViewMap: false,
-        canViewStatistics: false,
-        canViewReports: false,
+        canViewStatistics: true,
+        canViewReports: true,
         canManageUsers: false,
-        canExportData: false,
+        canExportData: true,
         canManageSettings: false,
       },
       district: {
@@ -87,28 +87,28 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
       mobile: {
         canViewDocuments: true,
         canViewMap: true,
-        canViewStatistics: false,
-        canViewReports: false,
+        canViewStatistics: true,
+        canViewReports: true,
         canManageUsers: false,
-        canExportData: false,
+        canExportData: true,
         canManageSettings: false,
       },
       police: {
         canViewDocuments: true,
         canViewMap: true,
-        canViewStatistics: false,
+        canViewStatistics: true,
         canViewReports: true,
         canManageUsers: false,
-        canExportData: false,
+        canExportData: true,
         canManageSettings: false,
       },
       health: {
         canViewDocuments: true,
         canViewMap: false,
-        canViewStatistics: false,
+        canViewStatistics: true,
         canViewReports: true,
         canManageUsers: false,
-        canExportData: false,
+        canExportData: true,
         canManageSettings: false,
       },
       regional: {
@@ -199,35 +199,8 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
                   </Link>
                 </SidebarMenuItem>
 
-                {permissions.canViewDocuments && (
-                  <SidebarMenuItem>
-                    <Link href={`/documents?role=${normalizedRole}`} passHref legacyBehavior>
-                      <SidebarMenuButton
-                        isActive={pathname === "/documents"}
-                        className={`sidebar-item ${pathname === "/documents" ? "active" : ""}`}
-                        onClick={() => isMobile && setMobileMenuOpen(false)}
-                      >
-                        <FileText className="sidebar-icon" />
-                        <span>Документы</span>
-                      </SidebarMenuButton>
-                    </Link>
-                  </SidebarMenuItem>
-                )}
 
-                {permissions.canViewMap && (
-                  <SidebarMenuItem>
-                    <Link href={`/map?role=${normalizedRole}`} passHref legacyBehavior>
-                      <SidebarMenuButton
-                        isActive={pathname === "/map"}
-                        className={`sidebar-item ${pathname === "/map" ? "active" : ""}`}
-                        onClick={() => isMobile && setMobileMenuOpen(false)}
-                      >
-                        <Map className="sidebar-icon" />
-                        <span>Карта</span>
-                      </SidebarMenuButton>
-                    </Link>
-                  </SidebarMenuItem>
-                )}
+             
 
                 {permissions.canViewStatistics && (
                   <SidebarMenuItem>
@@ -244,20 +217,7 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
                   </SidebarMenuItem>
                 )}
 
-                {permissions.canViewReports && (
-                  <SidebarMenuItem>
-                    <Link href={`/reports?role=${normalizedRole}`} passHref legacyBehavior>
-                      <SidebarMenuButton
-                        isActive={pathname.startsWith("/reports")}
-                        className={`sidebar-item ${pathname.startsWith("/reports") ? "active" : ""}`}
-                        onClick={() => isMobile && setMobileMenuOpen(false)}
-                      >
-                        <FileBarChart className="sidebar-icon" />
-                        <span>Отчеты</span>
-                      </SidebarMenuButton>
-                    </Link>
-                  </SidebarMenuItem>
-                )}
+            
 
                 {permissions.canManageUsers && (
                   <SidebarMenuItem>
@@ -297,21 +257,6 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
                       >
                         <Download className="sidebar-icon" />
                         <span>Экспорт</span>
-                      </SidebarMenuButton>
-                    </Link>
-                  </SidebarMenuItem>
-                )}
-
-                {permissions.canManageSettings && (
-                  <SidebarMenuItem>
-                    <Link href={`/settings?role=${normalizedRole}`} passHref legacyBehavior>
-                      <SidebarMenuButton
-                        isActive={pathname.startsWith("/settings")}
-                        className={`sidebar-item ${pathname.startsWith("/settings") ? "active" : ""}`}
-                        onClick={() => isMobile && setMobileMenuOpen(false)}
-                      >
-                        <Settings className="sidebar-icon" />
-                        <span>Настройки</span>
                       </SidebarMenuButton>
                     </Link>
                   </SidebarMenuItem>
