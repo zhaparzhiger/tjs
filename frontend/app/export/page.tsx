@@ -42,10 +42,10 @@ export default function ExportPage() {
     setIsLoading(true)
     try {
       const endpointMap: { [key: string]: string } = {
-        families: "http://localhost:5555/api/reports/families",
-        children: "http://localhost:5555/api/reports/members",
-        support: "http://localhost:5555/api/reports/support",
-        statistics: "http://localhost:5555/api/reports/analytics",
+        families: `${process.env.NEXT_PUBLIC_API_URL}/reports/families`,
+        children: `${process.env.NEXT_PUBLIC_API_URL}/reports/members`,
+        support: `${process.env.NEXT_PUBLIC_API_URL}/reports/support`,
+        statistics: `${process.env.NEXT_PUBLIC_API_URL}/reports/analytics`,
       }
 
       const endpoint = endpointMap[exportType]
@@ -288,7 +288,7 @@ export default function ExportPage() {
                           setIsLoading(true)
                           try {
                             const response = await axios.post(
-                              "http://localhost:5555/api/reports/regenerate",
+                              `${process.env.NEXT_PUBLIC_API_URL}/reports/regenerate`,
                               {
                                 type: item.type,
                                 format: item.format,

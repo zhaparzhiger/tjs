@@ -41,7 +41,7 @@ export function FamilyDashboard({ role }: FamilyDashboardProps) {
           return
         }
 
-        const response = await fetch("http://localhost:5555/api/families", {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/families`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

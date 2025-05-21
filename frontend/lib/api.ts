@@ -1,5 +1,5 @@
 // Base API configuration for making requests to the backend
-const API_BASE_URL = "http://localhost:5555/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5555/api"
 
 // Helper function to get the auth token from localStorage
 const getToken = () => {

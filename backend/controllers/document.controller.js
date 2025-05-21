@@ -233,7 +233,7 @@ const uploadDocument = async (req, res) => {
         }
       }
 
-      const fileUrl = `http://localhost:5555/uploads/${req.file.filename}`
+      const fileUrl = `http://192.168.10.19/uploads/${req.file.filename}`
       console.log("Generated fileUrl:", fileUrl)
       console.log("File saved at:", req.file.path)
 
@@ -314,7 +314,7 @@ const deleteDocument = async (req, res) => {
       }
     }
 
-    const filePath = path.join(__dirname, "..", existingDocument.fileUrl.replace("http://localhost:5555", ""))
+    const filePath = path.join(__dirname, "..", existingDocument.fileUrl.replace("http://192.168.10.19", ""))
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath)
     }

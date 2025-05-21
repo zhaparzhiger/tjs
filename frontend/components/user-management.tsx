@@ -96,7 +96,7 @@ export function UserManagement() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await fetch("http://localhost:5555/api/users", {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
           },
@@ -148,7 +148,7 @@ export function UserManagement() {
     }
 
     try {
-      const response = await fetch("http://localhost:5555/api/users", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -219,7 +219,7 @@ export function UserManagement() {
     }
 
     try {
-      const response = await fetch(`http://localhost:5555/api/users/${editUser.id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${editUser.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -278,7 +278,7 @@ export function UserManagement() {
 
   const handleResetPassword = async (userId: string) => {
     try {
-      const response = await fetch(`http://localhost:5555/api/users/${userId}/reset-password`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${userId}/reset-password`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -307,7 +307,7 @@ export function UserManagement() {
 
   const handleDeleteUser = async (userId: string) => {
     try {
-      const response = await fetch(`http://localhost:5555/api/users/${userId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/${userId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("auth_token")}`,

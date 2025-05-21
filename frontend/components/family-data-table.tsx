@@ -73,7 +73,7 @@ export function FamilyDataTable({ role }: FamilyDataTableProps) {
           throw new Error("Токен авторизации отсутствует")
         }
 
-        const response = await fetch("http://localhost:5555/api/families", {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/families`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -136,7 +136,7 @@ export function FamilyDataTable({ role }: FamilyDataTableProps) {
         throw new Error("Токен авторизации отсутствует")
       }
 
-      const response = await fetch(`http://localhost:5555/api/families/${id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/families/${id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,

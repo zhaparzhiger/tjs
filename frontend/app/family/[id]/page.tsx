@@ -34,7 +34,7 @@ export default function FamilyPage({ params }: { params: Promise<{ id: string }>
     const fetchFamily = async () => {
       setLoading(true)
       try {
-        const response = await fetch(`http://localhost:5555/api/families/${id}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/families/${id}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
           },
@@ -129,7 +129,7 @@ export default function FamilyPage({ params }: { params: Promise<{ id: string }>
         notes: family.notes,
       }
 
-      const response = await fetch(`http://localhost:5555/api/families/${id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/families/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -199,7 +199,7 @@ export default function FamilyPage({ params }: { params: Promise<{ id: string }>
     if (!family) return
 
     try {
-      const response = await fetch(`http://localhost:5555/api/families/${id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/families/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

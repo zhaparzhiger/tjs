@@ -83,7 +83,7 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
 
     const fetchFamilyMembers = async () => {
       try {
-        const response = await fetch(`http://localhost:5555/api/family-members/family/${family.id}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/family-members/family/${family.id}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("auth_token") || ""}`,
           },
@@ -172,7 +172,7 @@ export function FamilyDetailsExtended({ family, role, onUpdate }: FamilyDetailsE
         hasInterpreterNeeded: formData.hasInterpreterNeeded || false,
       }
 
-      const response = await fetch(`http://localhost:5555/api/families/${family.id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/families/${family.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

@@ -31,7 +31,7 @@ export function FamilyHistory({ family, role }: FamilyHistoryProps) {
         if (!токен) {
           throw new Error("Токен авторизации отсутствует")
         }
-        const ответ = await axios.get(`http://localhost:5555/api/families/family/${family.id}/history`, {
+        const ответ = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/families/family/${family.id}/history`, {
           headers: { Authorization: `Bearer ${токен}` },
         })
         console.log("Получена история семьи:", ответ.data)

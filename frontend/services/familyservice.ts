@@ -1,6 +1,6 @@
 import type { SupportMeasure } from "@/types/models";
 
-const API_BASE_URL = "http://localhost:5555/api/support";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5555/api";
 
 // Map frontend categories to backend types
 const categoryToTypeMap: { [key: string]: string[] } = {

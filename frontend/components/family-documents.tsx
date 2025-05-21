@@ -61,7 +61,7 @@ export function FamilyDocuments({ family, role }: FamilyDocumentsProps) {
     const fetchDocuments = async () => {
       try {
         const token = localStorage.getItem("auth_token")
-        const response = await axios.get(`http://localhost:5555/api/documents/family/${family.id}`, {
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/documents/family/${family.id}`, {
           headers: { Authorization: `Bearer ${token}` },
         })
         console.log("Fetched documents:", response.data)
@@ -97,7 +97,7 @@ export function FamilyDocuments({ family, role }: FamilyDocumentsProps) {
 
     try {
       const token = localStorage.getItem("auth_token")
-      const response = await axios.post("http://localhost:5555/api/documents/upload", formData, {
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/documents/upload`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
@@ -124,7 +124,7 @@ export function FamilyDocuments({ family, role }: FamilyDocumentsProps) {
   const handleDeleteDocument = async (id: string) => {
     try {
       const token = localStorage.getItem("auth_token")
-      await axios.delete(`http://localhost:5555/api/documents/${id}`, {
+      await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/documents/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       setDocuments(documents.filter((doc) => doc.id !== id))
@@ -147,7 +147,7 @@ export function FamilyDocuments({ family, role }: FamilyDocumentsProps) {
     let url = doc.fileUrl
     // Normalize URLs (handle relative, case-insensitive 'uploads')
     if (url && !url.startsWith("http")) {
-      url = `http://localhost:5555${url.startsWith("/") ? url : "/uploads/" + url}`
+      url = `${process.env.NEXT_PUBLIC_API_URL}${url.startsWith("/") ? url : "/uploads/" + url}`
       url = url.replace(/\/Uploads\//i, "/uploads/")
     }
     console.log("Normalized URL:", url)
@@ -241,7 +241,7 @@ export function FamilyDocuments({ family, role }: FamilyDocumentsProps) {
     let url = doc.fileUrl
     // Normalize URLs
     if (url && !url.startsWith("http")) {
-      url = `http://localhost:5555${url.startsWith("/") ? url : "/uploads/" + url}`
+      url = `${process.env.NEXT_PUBLIC_API_URL}${url.startsWith("/") ? url : "/uploads/" + url}`
       url = url.replace(/\/Uploads\//i, "/uploads/")
     }
 

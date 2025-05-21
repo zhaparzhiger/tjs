@@ -1,6 +1,6 @@
 import type { Family, FamilyMember, SupportMeasure } from "@/types/models";
 
-const API_BASE_URL = "http://localhost:5555/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5555/api";
 
 export class FamilyService {
   // Helper to get auth token

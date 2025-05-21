@@ -55,7 +55,7 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
       setError(null)
       setMembers([])
       try {
-        const response = await fetch(`http://localhost:5555/api/family-members/family/${family.id}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/family-members/family/${family.id}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
           },
@@ -289,7 +289,7 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
 
       console.log("Sending newMember:", newMember)
 
-      const response = await fetch(`http://localhost:5555/api/family-members`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/family-members`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -383,7 +383,7 @@ export function FamilyMembersExtended({ family, role }: FamilyMembersExtendedPro
 
   const handleDeleteMember = async (id: string) => {
     try {
-      const response = await fetch(`http://localhost:5555/api/family-members/${id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/family-members/${id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("auth_token")}`,

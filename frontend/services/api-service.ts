@@ -1,6 +1,6 @@
 import { FamilyMember, SupportMeasure } from "@/types/models";
 
-const API_BASE_URL = "http://localhost:5555/api"; // Adjust as needed
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5555/api";
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem("auth_token"); // Assuming token is stored in localStorage
